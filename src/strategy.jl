@@ -39,7 +39,6 @@ struct PrecomputedAction{TR,TN}
 end
 
 function (dynamics::ProductDynamics)(state, actions::Vector{<:PrecomputedAction}, t = nothing)
-    println("foo")
     map(actions) do a
         if a.reference_state != state
             throw(

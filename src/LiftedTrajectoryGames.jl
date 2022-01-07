@@ -12,7 +12,7 @@ using DifferentiableTrajectoryGenerators:
 using TrajectoryGamesBase:
     TrajectoryGamesBase,
     TrajectoryGame,
-    AbstractMultiPlayerDynamics,
+    AbstractDynamics,
     ZeroSumCostStructure,
     ProductDynamics,
     state_dim,
