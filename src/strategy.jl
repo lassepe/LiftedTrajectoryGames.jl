@@ -14,24 +14,42 @@ struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR}
     rng::TR
 end
 
-function (dynamics::ProductDynamics)(
-    state,
-    strategies::Vector{<:LiftedTrajectoryStrategy},
-    t = nothing,
-)
+function (strategy::LiftedTrajectoryStrategy)(state)
     # TODO: get turnlength from somewhere else
     turn_length = 5
-    map(strategies) do γ
-        if γ.reference_state != state
-            throw(ArgumentError("""
-                                This strategy is only valid for states $(γ.reference_state) \
-                                but has been called for $state instead which will likely not \
-                                produce meaningful results.
-                                """))
-        end
 
-        action_index = sample(γ.rng, Weights(γ.weights))
-        trajectory = γ.trajectory_candidates[action_index]
-        trajectory[:, turn_length]
+    if strategy.reference_state != state
+        throw(ArgumentError("""
+                            This strategy is only valid for states $(strategy.reference_state) \
+                            but has been called for $state instead which will likely not \
+                            produce meaningful results.
+                            """))
+    end
+
+    action_index = sample(strategy.rng, Weights(strategy.weights))
+    trajectory = strategy.trajectory_candidates[action_index]
+    next_substate = trajectory[:, turn_length]
+
+    PrecomputedAction(strategy.reference_state, next_substate)
+end
+
+struct PrecomputedAction{TR,TN}
+    reference_state::TR
+    next_substate::TN
+end
+
+function (dynamics::ProductDynamics)(state, actions::Vector{<:PrecomputedAction}, t = nothing)
+    println("foo")
+    map(actions) do a
+        if a.reference_state != state
+            throw(
+                ArgumentError("""
+                              This precomputed action is only valid for states \
+                              $(a.reference_state) but has been called for $state instead which \
+                              will likely not produce meaningful results.
+                              """),
+            )
+        end
+        a.next_substate
     end |> mortar
 end
