@@ -1,7 +1,7 @@
 """
 A potentially non-deterministic strategy that mixes over multiple continuous trajectories.
 """
-struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR}
+struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR} <: AbstractStrategy
     "A vector of action candidates in continuous domain."
     trajectory_candidates::Vector{TC}
     "A collection of weights associated with each candidate aciton to mix over these candidates."
@@ -14,7 +14,7 @@ struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR}
     rng::TR
 end
 
-function (strategy::LiftedTrajectoryStrategy)(state, t = nothing)
+function (strategy::LiftedTrajectoryStrategy)(state)
     # TODO: get turnlength from somewhere else
     turn_length = 5
 
@@ -38,17 +38,15 @@ struct PrecomputedAction{TR,TN}
     next_substate::TN
 end
 
-function (dynamics::ProductDynamics)(state, actions::Vector{<:PrecomputedAction}, t = nothing)
-    map(actions) do a
-        if a.reference_state != state
-            throw(
-                ArgumentError("""
-                              This precomputed action is only valid for states \
-                              $(a.reference_state) but has been called for $state instead which \
-                              will likely not produce meaningful results.
-                              """),
-            )
-        end
-        a.next_substate
-    end |> mortar
+function (dynamics::AbstractDynamics)(state, action::PrecomputedAction, t = nothing)
+    if action.reference_state != state
+        throw(
+            ArgumentError("""
+                          This precomputed action is only valid for states \
+                          $(action.reference_state) but has been called for $state instead which \
+                          will likely not produce meaningful results.
+                          """),
+        )
+    end
+    action.next_substate
 end

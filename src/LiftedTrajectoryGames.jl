@@ -13,6 +13,8 @@ using TrajectoryGamesBase:
     TrajectoryGamesBase,
     TrajectoryGame,
     AbstractDynamics,
+    AbstractStrategy,
+    JointStrategy,
     ZeroSumCostStructure,
     ProductDynamics,
     state_dim,

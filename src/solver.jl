@@ -128,5 +128,5 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
     end
 
-    γs
+    JointStrategy(γs)
 end
