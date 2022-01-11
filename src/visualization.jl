@@ -16,7 +16,7 @@ end
 function Makie.convert_arguments(::Type{<:Makie.Series}, γ::LiftedTrajectoryStrategy)
     # TODO: is missing opacity for trajectory distribution (as on Julia slack)
     traj_points = map(γ.trajectory_candidates) do traj
-        map(s -> Makie.Point2f(s[1:2]), eachcol(traj))
+        map(s -> Makie.Point2f(s[1:2]), traj)
     end
     (traj_points,)
 end

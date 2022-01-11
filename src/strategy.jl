@@ -28,7 +28,7 @@ function (strategy::LiftedTrajectoryStrategy)(state, t = nothing)
 
     action_index = sample(strategy.rng, Weights(strategy.weights))
     trajectory = strategy.trajectory_candidates[action_index]
-    next_substate = trajectory[:, turn_length]
+    next_substate = trajectory[turn_length]
 
     PrecomputedAction(strategy.reference_state, next_substate)
 end

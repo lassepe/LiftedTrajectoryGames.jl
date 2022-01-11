@@ -19,7 +19,7 @@ end
 Convenience contructor to drive a suitable solver directly form the a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ZeroSumCostStructure,<:Any,<:ProductDynamics},
+    game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     planning_horizon;
     rng = Random.MersenneTwister(1),
     n_actions = 2,
@@ -83,7 +83,7 @@ end
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
-    game::TrajectoryGame{<:ZeroSumCostStructure,<:Any,<:ProductDynamics},
+    game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     initial_state,
 )
     # TODO: this should not be hard-coded
@@ -96,11 +96,11 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             player_references,
             solver.trajectory_generators,
         ) do substate, refs, trajectory_generator
-            [trajectory_generator(substate, ref) for ref in refs]
+            [trajectory_generator(substate, ref)[1] for ref in refs]
         end
 
-        cost_tensor = map(Iterators.product(player_trajectory_candidates...)) do ts
-            xs = map(eachcol.(ts)...) do x_p1, x_p2
+        cost_tensor = map(Iterators.product(player_trajectory_candidates...)) do (t1, t2)
+            xs = map(t1, t2) do x_p1, x_p2
                 mortar([x_p1, x_p2])
             end
             # TODO: the trajectory generator shouuld also return us so that we can have outer costs
