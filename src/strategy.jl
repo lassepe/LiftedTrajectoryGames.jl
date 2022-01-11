@@ -14,7 +14,7 @@ struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR} <: AbstractStrategy
     rng::TR
 end
 
-function (strategy::LiftedTrajectoryStrategy)(state)
+function (strategy::LiftedTrajectoryStrategy)(state, t = nothing)
     # TODO: get turnlength from somewhere else
     turn_length = 5
 
@@ -36,6 +36,12 @@ end
 struct PrecomputedAction{TR,TN}
     reference_state::TR
     next_substate::TN
+end
+
+function TrajectoryGamesBase.join_actions(actions::AbstractVector{<:PrecomputedAction})
+    reference_state = only(unique(a.reference_state for a in actions))
+    joint_next_state = mortar([a.next_substate for a in actions])
+    PrecomputedAction(reference_state, joint_next_state)
 end
 
 function (dynamics::AbstractDynamics)(state, action::PrecomputedAction, t = nothing)

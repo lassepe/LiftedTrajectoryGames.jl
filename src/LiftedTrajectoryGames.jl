@@ -19,6 +19,7 @@ using TrajectoryGamesBase:
     ProductDynamics,
     state_dim,
     num_players,
+    join_actions,
     blocks,
     mortar
 using Flux: Flux, Chain, Dense, Optimise, @functor
