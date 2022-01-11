@@ -1,8 +1,10 @@
-Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TF,TS,TR}
+Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generator::TA
     "A acollection of trajectory generators, one for each player in the game"
     trajectory_generators::TT
+    "The number of time steps to plan into the future."
+    planning_horizon::TH
     "The solver for the high-level finite game"
     finite_game_solver::TF = FiniteGames.LemkeHowsonGameSolver()
     "A value network to predict the game value for each player"
@@ -17,7 +19,8 @@ end
 Convenience contructor to drive a suitable solver directly form the a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics};
+    game::TrajectoryGame{<:ZeroSumCostStructure,<:Any,<:ProductDynamics},
+    planning_horizon;
     rng = Random.MersenneTwister(1),
     n_actions = 2,
     network_configs = Iterators.repeated((;
@@ -45,7 +48,7 @@ function LiftedTrajectoryGameSolver(
                     parameterization,
                     subdynamics,
                     game.env,
-                    game.horizon,
+                    planning_horizon,
                 ),
                 trajectory_solver,
             )
@@ -71,6 +74,7 @@ function LiftedTrajectoryGameSolver(
     LiftedTrajectoryGameSolver(;
         trajectory_parameter_generator,
         trajectory_generators,
+        planning_horizon,
         enable_learning = Ref(enable_learning[]),
         kwargs...,
     )
@@ -79,11 +83,10 @@ end
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
-    ::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
+    game::TrajectoryGame{<:ZeroSumCostStructure,<:Any,<:ProductDynamics},
     initial_state,
 )
     # TODO: this should not be hard-coded
-    metric = DifferentiableTrajectoryGenerators.TotalDistanceMetric(; discount_factor = 0.95)
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
     ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generator...)) do
@@ -97,11 +100,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
 
         cost_tensor = map(Iterators.product(player_trajectory_candidates...)) do ts
-            DifferentiableTrajectoryGenerators.evaluate_trajectories(
-                metric,
-                ts...,
-                solver.statevalue_predictor,
-            )
+            xs = map(eachcol.(ts)...) do x_p1, x_p2
+                mortar([x_p1, x_p2])
+            end
+            # TODO: the trajectory generator shouuld also return us so that we can have outer costs
+            # depend on them here
+            us = [nothing for _ in xs]
+            game.cost(1, xs, us)
         end
 
         mixing_strategies = let
