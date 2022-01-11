@@ -79,17 +79,17 @@ end
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
-    game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
-    state,
+    ::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
+    initial_state,
 )
     # TODO: this should not be hard-coded
     metric = DifferentiableTrajectoryGenerators.TotalDistanceMetric(; discount_factor = 0.95)
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
     ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generator...)) do
-        player_references = map(gen -> gen(state), solver.trajectory_parameter_generator)
+        player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generator)
         player_trajectory_candidates = map(
-            blocks(state),
+            blocks(initial_state),
             player_references,
             solver.trajectory_generators,
         ) do substate, refs, trajectory_generator
@@ -119,7 +119,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         player_trajectory_candidates,
     ) do weights, V, trajectory_candidates
         info = (; V)
-        LiftedTrajectoryStrategy(trajectory_candidates, weights, state, info, solver.rng)
+        LiftedTrajectoryStrategy(trajectory_candidates, weights, initial_state, info, solver.rng)
     end
 
     if solver.enable_learning[]

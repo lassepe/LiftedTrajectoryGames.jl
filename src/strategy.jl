@@ -14,7 +14,7 @@ struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR}
     rng::TR
 end
 
-function (strategy::LiftedTrajectoryStrategy)(state)
+function (strategy::LiftedTrajectoryStrategy)(state, t = nothing)
     # TODO: get turnlength from somewhere else
     turn_length = 5
 
