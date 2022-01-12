@@ -1,6 +1,6 @@
 Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
     "A collection of action generators, one for each player in the game."
-    trajectory_parameter_generator::TA
+    trajectory_parameter_generators::TA
     "A acollection of trajectory generators, one for each player in the game"
     trajectory_generators::TT
     "The number of time steps to plan into the future."
@@ -54,7 +54,7 @@ function LiftedTrajectoryGameSolver(
             )
         end
 
-    trajectory_parameter_generator = map(
+    trajectory_parameter_generators = map(
         trajectory_generators,
         player_learning_rate_signs,
         network_configs,
@@ -72,7 +72,7 @@ function LiftedTrajectoryGameSolver(
     end
 
     LiftedTrajectoryGameSolver(;
-        trajectory_parameter_generator,
+        trajectory_parameter_generators,
         trajectory_generators,
         planning_horizon,
         enable_learning = Ref(enable_learning[]),
@@ -89,8 +89,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     # TODO: this should not be hard-coded
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
-    ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generator...)) do
-        player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generator)
+    ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generators...)) do
+        player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
         player_trajectory_candidates = map(
             blocks(initial_state),
             player_references,
@@ -128,7 +128,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     if solver.enable_learning[]
-        for parameter_generator in solver.trajectory_parameter_generator
+        for parameter_generator in solver.trajectory_parameter_generators
             update_parameters!(parameter_generator, ∇V1)
         end
     end
