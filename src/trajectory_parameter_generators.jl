@@ -35,7 +35,6 @@ function (g::NNActionGenerator)(states)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
-# TODO: move this to a common file
 function update_parameters!(g, ∇)
     θ = Flux.params(g)
     Optimise.update!(g.optimizer, θ, ∇)

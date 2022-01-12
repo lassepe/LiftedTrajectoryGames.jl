@@ -26,10 +26,10 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 0.001,
+        learning_rate = 1000.0,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 5, params_abs_max = 3),
+        GoalReferenceParameterization(; α = 5, params_abs_max = 4),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
@@ -128,8 +128,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     if solver.enable_learning[]
-        for action_generator in solver.trajectory_parameter_generator
-            update_parameters!(action_generator, ∇V1)
+        for parameter_generator in solver.trajectory_parameter_generator
+            update_parameters!(parameter_generator, ∇V1)
         end
     end
 

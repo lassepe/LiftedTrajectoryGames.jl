@@ -2,11 +2,10 @@ module LiftedTrajectoryGames
 
 using FiniteGames: FiniteGames
 using DifferentiableTrajectoryGenerators:
-    DifferentiableTrajectoryGenerators,
     DifferentiableTrajectoryGenerator,
     ParametricOptimizationProblem,
     InputReferenceParameterization,
-    evaluate_trajectories,
+    GoalReferenceParameterization,
     QPSolver,
     param_dim
 using TrajectoryGamesBase:
