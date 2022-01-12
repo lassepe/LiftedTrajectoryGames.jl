@@ -26,6 +26,7 @@ using Makie: Makie, @L_str
 using StatsBase: Weights, sample
 using Random: Random
 using Zygote: Zygote
+using LinearAlgebra: norm
 
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")

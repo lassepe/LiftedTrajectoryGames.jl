@@ -26,7 +26,7 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 0.1,
+        learning_rate = 0.01,
     )),
     trajectory_parameterizations = Iterators.repeated(
         InputReferenceParameterization(; α = 5, params_abs_max = 4),
@@ -123,7 +123,12 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         Vs,
         player_trajectory_candidates,
     ) do weights, V, trajectory_candidates
-        info = (; V)
+        info = (;
+            V,
+            ∇_norm = sum(
+                norm(∇V1[p] for p in Flux.params(solver.trajectory_parameter_generators...)),
+            ),
+        )
         LiftedTrajectoryStrategy(trajectory_candidates, weights, initial_state, info, solver.rng)
     end
 
