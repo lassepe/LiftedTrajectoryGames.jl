@@ -28,6 +28,7 @@ using Random: Random
 using Zygote: Zygote
 using LinearAlgebra: norm
 
+include("deprecated/online_optimization_action_generator.jl")
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")

@@ -26,7 +26,7 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 0.01,
+        learning_rate = 1,
     )),
     trajectory_parameterizations = Iterators.repeated(
         InputReferenceParameterization(; α = 5, params_abs_max = 4),
@@ -59,10 +59,7 @@ function LiftedTrajectoryGameSolver(
         player_learning_rate_signs,
         network_configs,
     ) do trajectory_generator, learning_rate_sign, network_config
-        NNActionGenerator(;
-            network_config.n_hidden_layers,
-            state_dim = state_dim(game.dynamics),
-            network_config.hidden_dim,
+        OnlineOptimizationActionGenerator(;
             n_params = param_dim(trajectory_generator),
             n_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
