@@ -16,7 +16,7 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
 end
 
 """
-Convenience contructor to drive a suitable solver directly form the a given game.
+Convenience constructor to drive a suitable solver directly form a given game.
 """
 function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
@@ -26,10 +26,10 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 0.01,
+        learning_rate = 0.1,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        GoalReferenceParameterization(; α = 5, params_abs_max = 4),
+        InputReferenceParameterization(; α = 5, params_abs_max = 4),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
