@@ -37,7 +37,6 @@ function LiftedTrajectoryGameSolver(
 ) where {T}
     num_players(game) == 2 ||
         error("Currently, onlye 2-player problems are supported by this solver.")
-    # TODO: these should be derived from the cost structure
     player_learning_rate_signs = [1, -1]
 
     # setup a trajectory generator for every player
