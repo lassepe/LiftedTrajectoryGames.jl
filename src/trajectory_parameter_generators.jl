@@ -73,4 +73,3 @@ end
 function (g::OnlineOptimizationActionGenerator)(_)
     collect(eachcol(g.params))
 end
-

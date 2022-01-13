@@ -33,11 +33,11 @@ function LiftedTrajectoryGameSolver(
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
+    player_learning_scalings = [1, -1],
     kwargs...,
 ) where {T}
     num_players(game) == 2 ||
         error("Currently, onlye 2-player problems are supported by this solver.")
-    player_learning_rate_signs = [1, -1]
 
     # setup a trajectory generator for every player
     trajectory_generators =
@@ -55,7 +55,7 @@ function LiftedTrajectoryGameSolver(
 
     trajectory_parameter_generators = map(
         trajectory_generators,
-        player_learning_rate_signs,
+        player_learning_scalings,
         network_configs,
     ) do trajectory_generator, learning_rate_sign, network_config
         NNActionGenerator(;
