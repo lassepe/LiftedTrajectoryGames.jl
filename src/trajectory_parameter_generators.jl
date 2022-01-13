@@ -66,7 +66,7 @@ function OnlineOptimizationActionGenerator(;
     params = (rand(rng, n_params, n_actions) .- 0.5) .* (2params_abs_max)
     optimizer = Optimise.Descent(learning_rate)
 
-    OnlineOptimizationActionGenerator(params, params_abs_max, optimizer)
+    OnlineOptimizationActionGenerator(params, optimizer)
 end
 @functor OnlineOptimizationActionGenerator (params,)
 

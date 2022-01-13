@@ -26,10 +26,10 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 0.1,
+        learning_rate = 50,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        GoalReferenceParameterization(; α = 5, params_abs_max = 5),
+        GoalReferenceParameterization(; α = 5, params_abs_max = 3),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
@@ -58,10 +58,7 @@ function LiftedTrajectoryGameSolver(
         player_learning_scalings,
         network_configs,
     ) do trajectory_generator, learning_rate_sign, network_config
-        NNActionGenerator(;
-            network_config.n_hidden_layers,
-            state_dim = state_dim(game.dynamics),
-            network_config.hidden_dim,
+        OnlineOptimizationActionGenerator(;
             n_params = param_dim(trajectory_generator),
             n_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
@@ -87,6 +84,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 )
     # TODO: make this a parameter
     learning_noise = nothing
+
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
     ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generators...)) do
