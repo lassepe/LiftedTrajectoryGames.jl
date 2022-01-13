@@ -85,7 +85,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     initial_state,
 )
-    # TODO: this should not be hard-coded
+    # TODO: make this a parameter
+    learning_noise = nothing
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
     ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generators...)) do
@@ -135,7 +136,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     if solver.enable_learning[]
         for parameter_generator in solver.trajectory_parameter_generators
-            update_parameters!(parameter_generator, ∇V1)
+            update_parameters!(parameter_generator, ∇V1; noise = learning_noise, solver.rng)
         end
     end
 
