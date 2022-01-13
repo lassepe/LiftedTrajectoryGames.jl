@@ -26,10 +26,10 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 1,
+        learning_rate = 0.1,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 5, params_abs_max = 4),
+        InputReferenceParameterization(; α = 5, params_abs_max = 5),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
@@ -37,7 +37,6 @@ function LiftedTrajectoryGameSolver(
 ) where {T}
     num_players(game) == 2 ||
         error("Currently, onlye 2-player problems are supported by this solver.")
-    # TODO: these should be derived from the cost structure
     player_learning_rate_signs = [1, -1]
 
     # setup a trajectory generator for every player
@@ -59,7 +58,10 @@ function LiftedTrajectoryGameSolver(
         player_learning_rate_signs,
         network_configs,
     ) do trajectory_generator, learning_rate_sign, network_config
-        OnlineOptimizationActionGenerator(;
+        NNActionGenerator(;
+            network_config.n_hidden_layers,
+            state_dim = state_dim(game.dynamics),
+            network_config.hidden_dim,
             n_params = param_dim(trajectory_generator),
             n_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
@@ -116,17 +118,19 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     γs = map(
+        Iterators.countfrom(),
         mixing_strategies,
         Vs,
         player_trajectory_candidates,
-    ) do weights, V, trajectory_candidates
+    ) do player_i, weights, V, trajectory_candidates
         info = (;
             V,
+            # TODO: maybe allow to disable
             ∇_norm = sum(
                 norm(∇V1[p] for p in Flux.params(solver.trajectory_parameter_generators...)),
             ),
         )
-        LiftedTrajectoryStrategy(trajectory_candidates, weights, initial_state, info, solver.rng)
+        LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
     if solver.enable_learning[]
