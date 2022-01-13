@@ -37,8 +37,10 @@ function (g::NNActionGenerator)(states)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
-function update_parameters!(g, ∇; noise = nothing, rng = nothing)
+function update_parameters!(g, ∇; noise = nothing, rng = nothing, action_gradient_scaling)
     θ = Flux.params(g)
+    p = only(θ)
+    ∇[p] .*= action_gradient_scaling'
     Optimise.update!(g.optimizer, θ, ∇)
 
     if !isnothing(noise)

@@ -86,6 +86,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 )
     # TODO: make this a parameter
     learning_noise = nothing
+    scale_action_gradients = true
 
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
@@ -112,8 +113,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         mixing_strategies = let
             sol = FiniteGames.solve_mixed_nash(
                 solver.finite_game_solver,
-                cost_tensor,
-                solver.min_action_probability,
+                cost_tensor;
+                ϵ = solver.min_action_probability,
             )
             (; sol.x, sol.y)
         end
@@ -139,8 +140,16 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     if solver.enable_learning[]
-        for parameter_generator in solver.trajectory_parameter_generators
-            update_parameters!(parameter_generator, ∇V1; noise = learning_noise, solver.rng)
+        for (parameter_generator, weights) in
+            zip(solver.trajectory_parameter_generators, mixing_strategies)
+            action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
+            update_parameters!(
+                parameter_generator,
+                ∇V1;
+                noise = learning_noise,
+                solver.rng,
+                action_gradient_scaling = 1 ./ weights,
+            )
         end
     end
 
