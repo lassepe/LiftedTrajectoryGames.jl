@@ -13,6 +13,8 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
     rng::TR = Random.MersenneTwister(1)
     "A flag that can be set to enable/disable learning"
     enable_learning::Ref{Bool} = Ref(true)
+    "The minimum probability for an action candidate"
+    min_action_probability::Float64 = 0.0
 end
 
 """
@@ -108,7 +110,11 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
 
         mixing_strategies = let
-            sol = FiniteGames.solve_mixed_nash(solver.finite_game_solver, cost_tensor)
+            sol = FiniteGames.solve_mixed_nash(
+                solver.finite_game_solver,
+                cost_tensor,
+                solver.min_action_probability,
+            )
             (; sol.x, sol.y)
         end
 
