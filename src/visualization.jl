@@ -6,15 +6,15 @@ TODO: could make use of `Makie.@recipe` here.
 function TrajectoryGamesBase.visualize_strategy!(
     fig,
     γ::Makie.Observable{<:LiftedTrajectoryStrategy},
-    color,
+    color;
+    weight_offset = 0.0,
 )
-    trajectory_colors = Makie.@lift([(color, w) for w in $γ.weights])
+    trajectory_colors = Makie.@lift([(color, w + weight_offset) for w in $γ.weights])
     Makie.series!(γ; color = trajectory_colors)
     fig
 end
 
 function Makie.convert_arguments(::Type{<:Makie.Series}, γ::LiftedTrajectoryStrategy)
-    # TODO: is missing opacity for trajectory distribution (as on Julia slack)
     traj_points = map(γ.trajectory_candidates) do traj
         map(s -> Makie.Point2f(s[1:2]), traj)
     end
