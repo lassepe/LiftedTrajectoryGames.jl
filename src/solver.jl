@@ -29,7 +29,7 @@ function LiftedTrajectoryGameSolver(
         learning_rate = 0.1,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 5, params_abs_max = 4),
+        InputReferenceParameterization(; α = 5, params_abs_max = 5),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
@@ -119,12 +119,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     γs = map(
+        Iterators.countfrom(),
         mixing_strategies,
         Vs,
         player_trajectory_candidates,
-    ) do weights, V, trajectory_candidates
+    ) do player_i, weights, V, trajectory_candidates
         info = (; V)
-        LiftedTrajectoryStrategy(trajectory_candidates, weights, initial_state, info, solver.rng)
+        LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
     if solver.enable_learning[]

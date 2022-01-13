@@ -19,6 +19,7 @@ using TrajectoryGamesBase:
     state_dim,
     num_players,
     join_actions,
+    Block,
     blocks,
     mortar
 using Flux: Flux, Chain, Dense, Optimise, @functor

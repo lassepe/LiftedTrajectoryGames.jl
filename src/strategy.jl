@@ -1,36 +1,38 @@
 """
 A potentially non-deterministic strategy that mixes over multiple continuous trajectories.
 """
-struct LiftedTrajectoryStrategy{TC,TW,TX,TI,TR} <: AbstractStrategy
+Base.@kwdef struct LiftedTrajectoryStrategy{TC,TW,TI,TR} <: AbstractStrategy
+    "Player index"
+    player_i::Int
     "A vector of action candidates in continuous domain."
     trajectory_candidates::Vector{TC}
     "A collection of weights associated with each candidate aciton to mix over these candidates."
     weights::TW
-    "The reference state for which this strategy has been computed"
-    reference_state::TX
     "A dict-like object with additioal information about this strategy."
     info::TI
     "A random number generator to compute pseudo-random actions."
     rng::TR
+    "The index of the action that has been sampled when this strategy has been querried for an \
+    action the first time (needed for longer open-loop rollouts)"
+    action_index::Ref{Int} = Ref(0)
 end
 
-function (strategy::LiftedTrajectoryStrategy)(state, t = nothing)
-    # TODO: get turnlength from somewhere else
-    turn_length = 5
+function (strategy::LiftedTrajectoryStrategy)(state, t)
+    if t == 1
+        strategy.action_index[] = sample(strategy.rng, Weights(strategy.weights))
+    end
 
-    if strategy.reference_state != state
+    trajectory = strategy.trajectory_candidates[strategy.action_index[]]
+
+    if trajectory[t] != state[Block(strategy.player_i)]
         throw(ArgumentError("""
-                            This strategy is only valid for states $(strategy.reference_state) \
-                            but has been called for $state instead which will likely not \
-                            produce meaningful results.
+                            This strategy is only valid for states states on its trajectory \
+                            but has been called for an off trajectory state instead which will \
+                            likely not produce meaningful results.
                             """))
     end
 
-    action_index = sample(strategy.rng, Weights(strategy.weights))
-    trajectory = strategy.trajectory_candidates[action_index]
-    next_substate = trajectory[turn_length]
-
-    PrecomputedAction(strategy.reference_state, next_substate)
+    PrecomputedAction(trajectory[t], trajectory[t+1])
 end
 
 struct PrecomputedAction{TR,TN}
@@ -39,9 +41,9 @@ struct PrecomputedAction{TR,TN}
 end
 
 function TrajectoryGamesBase.join_actions(actions::AbstractVector{<:PrecomputedAction})
-    reference_state = only(unique(a.reference_state for a in actions))
+    joint_reference_state = mortar([a.reference_state for a in actions])
     joint_next_state = mortar([a.next_substate for a in actions])
-    PrecomputedAction(reference_state, joint_next_state)
+    PrecomputedAction(joint_reference_state, joint_next_state)
 end
 
 function (dynamics::AbstractDynamics)(state, action::PrecomputedAction, t = nothing)
