@@ -28,7 +28,7 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 1,
+        learning_rate = 20,
     )),
     trajectory_parameterizations = Iterators.repeated(
         GoalReferenceParameterization(; α = 5, params_abs_max = 5),
@@ -37,7 +37,7 @@ function LiftedTrajectoryGameSolver(
     enable_learning = true,
     player_learning_scalings = [1, -1],
     kwargs...,
-) where {T}
+)
     num_players(game) == 2 ||
         error("Currently, onlye 2-player problems are supported by this solver.")
 
