@@ -85,7 +85,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     initial_state,
 )
     # TODO: make this a parameter
-    learning_noise = nothing
+    parameter_noise = 0.0
     scale_action_gradients = true
 
     local Vs, mixing_strategies, player_references, player_trajectory_candidates
@@ -146,7 +146,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             update_parameters!(
                 parameter_generator,
                 ∇V1;
-                noise = learning_noise,
+                noise = parameter_noise,
                 solver.rng,
                 action_gradient_scaling = 1 ./ weights,
             )
