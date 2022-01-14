@@ -67,7 +67,7 @@ function LiftedTrajectoryGameSolver(
             trajectory_generator.problem.parameterization.params_abs_max,
             learning_rate = network_config.learning_rate * learning_rate_sign,
             rng,
-            initial_parameter_population
+            initial_parameter_population,
         )
     end
 
@@ -99,17 +99,35 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             player_references,
             solver.trajectory_generators,
         ) do substate, refs, trajectory_generator
-            [trajectory_generator(substate, ref)[1] for ref in refs]
+            map(refs) do ref
+                (; xs, inequality_duals) = trajectory_generator(substate, ref)
+                xs
+            end
         end
 
-        cost_tensor = map(Iterators.product(player_trajectory_candidates...)) do (t1, t2)
-            xs = map(t1, t2) do x_p1, x_p2
+        # TODO: fix this ugly hack and duplicate compution
+        player_trajectory_duals = map(
+            blocks(initial_state),
+            player_references,
+            solver.trajectory_generators,
+        ) do substate, refs, trajectory_generator
+            map(refs) do ref
+                (; xs, inequality_duals) = trajectory_generator(substate, ref)
+                inequality_duals
+            end
+        end
+
+        cost_tensor = map(
+            Iterators.product(player_trajectory_candidates...),
+            Iterators.product(player_trajectory_duals...),
+        ) do (xs1, xs2), (λs1, λs2)
+            xs = map(xs1, xs2) do x_p1, x_p2
                 mortar([x_p1, x_p2])
             end
-            # TODO: the trajectory generator shouuld also return us so that we can have outer costs
+            # TODO: the trajectory generator should also return us so that we can have outer costs
             # depend on them here
             us = [nothing for _ in xs]
-            game.cost(1, xs, us)
+            game.cost(1, xs, us) + 0.1 * (sum(λs1 .^ 2) - sum(λs2 .^ 2))
         end
 
         mixing_strategies = let
