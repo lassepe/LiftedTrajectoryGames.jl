@@ -148,7 +148,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 ∇V1;
                 noise = parameter_noise,
                 solver.rng,
-                action_gradient_scaling = 1 ./ weights,
+                action_gradient_scaling,
             )
         end
     end
