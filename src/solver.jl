@@ -24,6 +24,7 @@ function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     planning_horizon;
     rng = Random.MersenneTwister(1),
+    initial_parameter_population,
     n_actions = 2,
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
@@ -31,7 +32,7 @@ function LiftedTrajectoryGameSolver(
         learning_rate = 20,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        GoalReferenceParameterization(; α = 5, params_abs_max = 5),
+        InputReferenceParameterization(; α = 5, params_abs_max = 5),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
@@ -66,6 +67,7 @@ function LiftedTrajectoryGameSolver(
             trajectory_generator.problem.parameterization.params_abs_max,
             learning_rate = network_config.learning_rate * learning_rate_sign,
             rng,
+            initial_parameter_population
         )
     end
 
