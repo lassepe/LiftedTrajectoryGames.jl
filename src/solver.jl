@@ -29,7 +29,7 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 100,
+        learning_rate = 10,
     )),
     trajectory_parameterizations = Iterators.repeated(
         InputReferenceParameterization(; α = 2, params_abs_max = 5),
@@ -80,6 +80,16 @@ function LiftedTrajectoryGameSolver(
     )
 end
 
+using Infiltrator
+
+function poor_mans_huber(x)
+    if abs(x) > 1
+        x
+    else
+        x^2
+    end
+end
+
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
@@ -90,7 +100,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    local Vs, mixing_strategies, player_references, player_trajectory_candidates
+    local Vs, mixing_strategies, player_references, player_trajectory_candidates, regularization
 
     ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generators...)) do
         player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
@@ -102,18 +112,19 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             [trajectory_generator(substate, ref) for ref in refs]
         end
 
-        cost_tensor = map(Iterators.product(eachindex.(player_trajectory_candidates)...)) do (i1, i2)
-            t1 = player_trajectory_candidates[1][i1]
-            t2 = player_trajectory_candidates[2][i2]
+        cost_tensor =
+            map(Iterators.product(eachindex.(player_trajectory_candidates)...)) do (i1, i2)
+                t1 = player_trajectory_candidates[1][i1]
+                t2 = player_trajectory_candidates[2][i2]
 
-            xs = map(t1.xs, t2.xs) do x1, x2
-                mortar([x1, x2])
+                xs = map(t1.xs, t2.xs) do x1, x2
+                    mortar([x1, x2])
+                end
+                us = map(t1.us, t2.us) do u1, u2
+                    mortar([u1, u2])
+                end
+                game.cost(1, xs, us)
             end
-            us = map(t1.us, t2.us) do u1, u2
-                mortar([u1, u2])
-            end
-            game.cost(1, xs, us) + 10 * (sum(t1.λs[2] .^ 2) - sum(t2.λs[2] .^ 2))
-        end
 
         mixing_strategies = let
             sol = FiniteGames.solve_mixed_nash(
@@ -125,7 +136,12 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
 
         Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
-        Vs.V1
+        regularization = (
+            sum(sum(poor_mans_huber.(t.λs)) for t in player_trajectory_candidates[1]) -
+            sum(sum(poor_mans_huber.(t.λs)) for t in player_trajectory_candidates[2])
+        )
+
+        Vs.V1 + 1e-3 * regularization
     end
 
     γs = map(
