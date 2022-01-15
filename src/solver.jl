@@ -80,13 +80,11 @@ function LiftedTrajectoryGameSolver(
     )
 end
 
-using Infiltrator
-
-function poor_mans_huber(x)
-    if abs(x) > 1
-        x
+function poor_mans_huber(x; δ = 1)
+    if abs(x) > δ
+        δ * (abs(x) - 0.5δ)
     else
-        x^2
+        0.5x^2
     end
 end
 
