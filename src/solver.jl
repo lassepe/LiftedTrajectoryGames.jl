@@ -134,12 +134,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
 
         Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
-        regularization = (
-            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
-            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
-        )
+        regularization =
+            (
+                sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
+                sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
+            ) / solver.planning_horizon
 
-        Vs.V1 + 1e-3 * regularization
+        Vs.V1 + 1e-2 * regularization
     end
 
     γs = map(
