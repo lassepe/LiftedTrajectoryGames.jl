@@ -16,7 +16,7 @@ end
 
 function Makie.convert_arguments(::Type{<:Makie.Series}, γ::LiftedTrajectoryStrategy)
     traj_points = map(γ.trajectory_candidates) do traj
-        map(s -> Makie.Point2f(s[1:2]), traj)
+        map(s -> Makie.Point2f(s[1:2]), traj.xs)
     end
     (traj_points,)
 end

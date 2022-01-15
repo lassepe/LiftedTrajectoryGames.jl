@@ -99,35 +99,20 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             player_references,
             solver.trajectory_generators,
         ) do substate, refs, trajectory_generator
-            map(refs) do ref
-                (; xs, inequality_duals) = trajectory_generator(substate, ref)
-                xs
-            end
+            [trajectory_generator(substate, ref) for ref in refs]
         end
 
-        # TODO: fix this ugly hack and duplicate compution
-        player_trajectory_duals = map(
-            blocks(initial_state),
-            player_references,
-            solver.trajectory_generators,
-        ) do substate, refs, trajectory_generator
-            map(refs) do ref
-                (; xs, inequality_duals) = trajectory_generator(substate, ref)
-                inequality_duals
-            end
-        end
+        cost_tensor = map(Iterators.product(eachindex.(player_trajectory_candidates)...)) do (i1, i2)
+            t1 = player_trajectory_candidates[1][i1]
+            t2 = player_trajectory_candidates[2][i2]
 
-        cost_tensor = map(
-            Iterators.product(player_trajectory_candidates...),
-            Iterators.product(player_trajectory_duals...),
-        ) do (xs1, xs2), (λs1, λs2)
-            xs = map(xs1, xs2) do x_p1, x_p2
-                mortar([x_p1, x_p2])
+            xs = map(t1.xs, t2.xs) do x1, x2
+                mortar([x1, x2])
             end
-            # TODO: the trajectory generator should also return us so that we can have outer costs
-            # depend on them here
-            us = [nothing for _ in xs]
-            game.cost(1, xs, us) + 0.1 * (sum(λs1 .^ 2) - sum(λs2 .^ 2))
+            us = map(t1.us, t2.us) do u1, u2
+                mortar([u1, u2])
+            end
+            game.cost(1, xs, us) + 10 * (sum(t1.λs[2] .^ 2) - sum(t2.λs[2] .^ 2))
         end
 
         mixing_strategies = let

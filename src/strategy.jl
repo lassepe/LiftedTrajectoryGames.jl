@@ -22,7 +22,7 @@ function (strategy::LiftedTrajectoryStrategy)(state, t)
         strategy.action_index[] = sample(strategy.rng, Weights(strategy.weights))
     end
 
-    trajectory = strategy.trajectory_candidates[strategy.action_index[]]
+    trajectory = strategy.trajectory_candidates[strategy.action_index[]].xs
 
     if trajectory[t] != state[Block(strategy.player_i)]
         throw(ArgumentError("""
