@@ -29,10 +29,10 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 20,
+        learning_rate = 100,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 5, params_abs_max = 5),
+        InputReferenceParameterization(; α = 2, params_abs_max = 5),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
