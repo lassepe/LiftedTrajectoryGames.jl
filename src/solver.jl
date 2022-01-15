@@ -80,7 +80,7 @@ function LiftedTrajectoryGameSolver(
     )
 end
 
-function poor_mans_huber(x; δ = 1)
+function huber(x; δ = 1)
     if abs(x) > δ
         δ * (abs(x) - 0.5δ)
     else
@@ -135,8 +135,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
         Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
         regularization = (
-            sum(sum(poor_mans_huber.(t.λs)) for t in player_trajectory_candidates[1]) -
-            sum(sum(poor_mans_huber.(t.λs)) for t in player_trajectory_candidates[2])
+            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
+            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
         )
 
         Vs.V1 + 1e-3 * regularization
