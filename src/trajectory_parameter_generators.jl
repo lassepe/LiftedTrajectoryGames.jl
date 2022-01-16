@@ -74,7 +74,7 @@ function OnlineOptimizationActionGenerator(;
     end
     @assert length(params) == n_params * n_actions
     optimizer = ParameterSchedulers.Scheduler(
-        ParameterSchedulers.Exp(; λ = learning_rate, γ = 0.99),
+        ParameterSchedulers.Exp(; λ = learning_rate, γ = 0.995),
         Optimise.Descent(),
     )
 

@@ -32,7 +32,7 @@ function LiftedTrajectoryGameSolver(
         learning_rate = 100.0,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 2, params_abs_max = 5),
+        InputReferenceParameterization(; α = 3, params_abs_max = 5),
     ),
     trajectory_solver = QPSolver(),
     enable_learning = true,
