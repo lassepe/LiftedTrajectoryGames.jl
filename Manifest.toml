@@ -1061,6 +1061,12 @@ git-tree-sha1 = "03a7a85b76381a3d04c7a1656039197e70eda03d"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.11"
 
+[[deps.ParameterSchedulers]]
+deps = ["Flux"]
+git-tree-sha1 = "2455e1052e8a95783ef8556b27bd9089c38cb953"
+uuid = "d7d3b36b-41b8-4d0d-a2bf-768c6151755e"
+version = "0.2.1"
+
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
 git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"

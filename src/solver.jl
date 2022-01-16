@@ -29,7 +29,7 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 10,
+        learning_rate = 100.0,
     )),
     trajectory_parameterizations = Iterators.repeated(
         InputReferenceParameterization(; α = 2, params_abs_max = 5),

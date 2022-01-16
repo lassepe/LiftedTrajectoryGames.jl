@@ -28,6 +28,7 @@ using StatsBase: Weights, sample
 using Random: Random
 using Zygote: Zygote
 using LinearAlgebra: norm
+using ParameterSchedulers: ParameterSchedulers
 
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")

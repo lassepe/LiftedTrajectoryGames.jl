@@ -73,7 +73,10 @@ function OnlineOptimizationActionGenerator(;
         reduce(hcat, sample(rng, initial_parameter_population, n_actions; replace = false))
     end
     @assert length(params) == n_params * n_actions
-    optimizer = Optimise.Descent(learning_rate)
+    optimizer = ParameterSchedulers.Scheduler(
+        ParameterSchedulers.Exp(; λ = learning_rate, γ = 0.99),
+        Optimise.Descent(),
+    )
 
     OnlineOptimizationActionGenerator(params, optimizer)
 end
