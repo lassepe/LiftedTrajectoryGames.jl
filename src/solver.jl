@@ -103,7 +103,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     local Vs, mixing_strategies, player_references, player_trajectory_candidates, regularization
 
-    ∇V1 = Zygote.gradient(Flux.params(solver.trajectory_parameter_generators...)) do
+    function forward_pass()
         player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
         player_trajectory_candidates = map(
             blocks(initial_state),
@@ -146,6 +146,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         Vs.V1 + 1e-2 * regularization
     end
 
+    ∇V1 = if any(solver.enable_learning)
+        Zygote.gradient(forward_pass, Flux.params(solver.trajectory_parameter_generators...))
+    else
+        forward_pass()
+        nothing
+    end
+
     γs = map(
         Iterators.countfrom(),
         mixing_strategies,
@@ -155,9 +162,11 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         info = (;
             V,
             # TODO: maybe allow to disable
-            ∇_norm = sum(
-                norm(∇V1[p] for p in Flux.params(solver.trajectory_parameter_generators...)),
-            ),
+            ∇_norm = if isnothing(∇V1)
+                0.0
+            else
+                sum(norm(∇V1[p] for p in Flux.params(solver.trajectory_parameter_generators...)))
+            end,
         )
         LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
