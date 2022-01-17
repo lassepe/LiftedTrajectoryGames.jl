@@ -12,9 +12,7 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
     "A random number generator to generate non-deterministic strategies."
     rng::TR = Random.MersenneTwister(1)
     "A flag that can be set to enable/disable learning"
-    enable_learning::Ref{Bool} = Ref(true)
-    "The minimum probability for an action candidate"
-    min_action_probability::Float64 = 0.0
+    enable_learning::Vector{Bool} = [true, true]
 end
 
 """
@@ -24,8 +22,8 @@ function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     planning_horizon;
     rng = Random.MersenneTwister(1),
-    initial_parameter_population,
-    n_actions = 2,
+    initial_parameters,
+    n_actions = [2, 2],
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
@@ -35,7 +33,6 @@ function LiftedTrajectoryGameSolver(
         InputReferenceParameterization(; α = 3, params_abs_max = 5),
     ),
     trajectory_solver = QPSolver(),
-    enable_learning = true,
     player_learning_scalings = [1, -1],
     kwargs...,
 )
@@ -60,14 +57,20 @@ function LiftedTrajectoryGameSolver(
         trajectory_generators,
         player_learning_scalings,
         network_configs,
-    ) do trajectory_generator, learning_rate_sign, network_config
+        n_actions,
+        initial_parameters,
+    ) do trajectory_generator,
+    learning_rate_sign,
+    network_config,
+    n_player_actions,
+    initial_player_parameters
         OnlineOptimizationActionGenerator(;
             n_params = param_dim(trajectory_generator),
-            n_actions,
+            n_actions = n_player_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
             learning_rate = network_config.learning_rate * learning_rate_sign,
             rng,
-            initial_parameter_population,
+            initial_parameters = initial_player_parameters,
         )
     end
 
@@ -75,7 +78,6 @@ function LiftedTrajectoryGameSolver(
         trajectory_parameter_generators,
         trajectory_generators,
         planning_horizon,
-        enable_learning = Ref(enable_learning[]),
         kwargs...,
     )
 end
@@ -92,7 +94,8 @@ end
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
-    initial_state,
+    initial_state;
+    min_action_probability = 0.0,
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
@@ -128,7 +131,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             sol = FiniteGames.solve_mixed_nash(
                 solver.finite_game_solver,
                 cost_tensor;
-                ϵ = solver.min_action_probability,
+                ϵ = min_action_probability,
             )
             (; sol.x, sol.y)
         end
@@ -159,18 +162,19 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
-    if solver.enable_learning[]
-        for (parameter_generator, weights) in
-            zip(solver.trajectory_parameter_generators, mixing_strategies)
-            action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
-            update_parameters!(
-                parameter_generator,
-                ∇V1;
-                noise = parameter_noise,
-                solver.rng,
-                action_gradient_scaling,
-            )
+    for (parameter_generator, weights, enable_player_learning) in
+        zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
+        if !enable_player_learning
+            continue
         end
+        action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
+        update_parameters!(
+            parameter_generator,
+            ∇V1;
+            noise = parameter_noise,
+            solver.rng,
+            action_gradient_scaling,
+        )
     end
 
     JointStrategy(γs)

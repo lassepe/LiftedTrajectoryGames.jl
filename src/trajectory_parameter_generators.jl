@@ -16,7 +16,7 @@ function NNActionGenerator(;
     n_actions,
     learning_rate,
     rng,
-    initial_parameter_population::Nothing,
+    initial_parameters::Nothing,
 )
     init(in, out) = Flux.glorot_uniform(rng, in, out)
 
@@ -65,12 +65,12 @@ function OnlineOptimizationActionGenerator(;
     params_abs_max,
     learning_rate,
     rng,
-    initial_parameter_population = nothing,
+    initial_parameters = nothing,
 )
-    params = if isnothing(initial_parameter_population)
+    params = if isnothing(initial_parameters)
         (rand(rng, n_params, n_actions) .- 0.5) .* (2params_abs_max)
     else
-        reduce(hcat, sample(rng, initial_parameter_population, n_actions; replace = false))
+        initial_parameters
     end
     @assert length(params) == n_params * n_actions
     optimizer = ParameterSchedulers.Scheduler(
