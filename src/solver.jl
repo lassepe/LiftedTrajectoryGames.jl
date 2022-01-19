@@ -143,7 +143,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
             ) / solver.planning_horizon
 
-        Vs.V1 + 0.5e-2 * regularization
+        Vs.V1 + 0.1e-2 * regularization
     end
 
     ∇V1 = if any(solver.enable_learning)
