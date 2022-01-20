@@ -27,7 +27,7 @@ function LiftedTrajectoryGameSolver(
     network_configs = Iterators.repeated((;
         n_hidden_layers = 2,
         hidden_dim = 100,
-        learning_rate = 100.0,
+        learning_rate = 0.1,
     )),
     trajectory_parameterizations = Iterators.repeated(
         InputReferenceParameterization(; α = 3, params_abs_max = 5),
@@ -64,7 +64,10 @@ function LiftedTrajectoryGameSolver(
     network_config,
     n_player_actions,
     initial_player_parameters
-        OnlineOptimizationActionGenerator(;
+        NNActionGenerator(;
+            state_dim = state_dim(game.dynamics),
+            network_config.hidden_dim,
+            network_config.n_hidden_layers,
             n_params = param_dim(trajectory_generator),
             n_actions = n_player_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
@@ -95,7 +98,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     initial_state;
-    min_action_probability = 0.0,
+    min_action_probability = 0.02,
+    dual_regularization_weight = 1e-4,
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
@@ -137,13 +141,14 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
 
         Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
-        regularization =
+
+        dual_regularization =
             (
                 sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
                 sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
             ) / solver.planning_horizon
 
-        Vs.V1 + 1e-3 * regularization
+        Vs.V1 + dual_regularization_weight * dual_regularization
     end
 
     ∇V1 = if any(solver.enable_learning)
