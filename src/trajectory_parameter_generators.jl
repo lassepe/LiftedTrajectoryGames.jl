@@ -45,28 +45,8 @@ function (g::NNActionGenerator)(states)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
-function preprocess_gradients!(∇, g::OnlineOptimizationActionGenerator, θ; action_gradient_scaling)
-    p = only(θ)
-    ∇[p] .*= action_gradient_scaling'
-    ∇
-end
-
 function preprocess_gradients!(∇, g::NNActionGenerator, θ; kwargs...)
     ∇
-end
-
-function update_parameters!(g, ∇; noise = nothing, rng = nothing, action_gradient_scaling)
-    θ = Flux.params(g)
-    preprocess_gradients!(∇, g, θ; action_gradient_scaling)
-
-    Optimise.update!(g.optimizer, θ, ∇)
-
-    if !isnothing(noise)
-        for p in θ
-            p .+= randn(rng, size(p)) * noise
-        end
-    end
-    nothing
 end
 
 #== OnlineOptimizationActionGenerator ==#
@@ -101,4 +81,26 @@ end
 
 function (g::OnlineOptimizationActionGenerator)(_)
     collect(eachcol(g.params))
+end
+
+function preprocess_gradients!(∇, g::OnlineOptimizationActionGenerator, θ; action_gradient_scaling)
+    p = only(θ)
+    ∇[p] .*= action_gradient_scaling'
+    ∇
+end
+
+#== shared implementations ==#
+
+function update_parameters!(g, ∇; noise = nothing, rng = nothing, action_gradient_scaling)
+    θ = Flux.params(g)
+    preprocess_gradients!(∇, g, θ; action_gradient_scaling)
+
+    Optimise.update!(g.optimizer, θ, ∇)
+
+    if !isnothing(noise)
+        for p in θ
+            p .+= randn(rng, size(p)) * noise
+        end
+    end
+    nothing
 end
