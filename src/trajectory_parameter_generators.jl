@@ -16,9 +16,16 @@ function NNActionGenerator(;
     n_actions,
     learning_rate,
     rng,
-    initial_parameters::Nothing,
+    initial_parameters,
 )
-    init(in, out) = Flux.glorot_uniform(rng, in, out)
+    # TODO: only a quick hack. Don't merge to main like this!
+    if isnothing(initial_parameters)
+        init = (in, out) -> Flux.glorot_uniform(rng, in, out)
+    elseif initial_parameters === :all_zero
+        init = (in, out) -> zeros(in, out)
+    else
+        @assert false
+    end
 
     model = Chain(
         Dense(state_dim, hidden_dim, tanh; init),
