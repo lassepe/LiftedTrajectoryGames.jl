@@ -30,7 +30,7 @@ function LiftedTrajectoryGameSolver(
         learning_rate = 0.05,
     )),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 2, params_abs_max = 10),
+        InputReferenceParameterization(; α = 3, params_abs_max = 10),
     ),
     trajectory_solver = QPSolver(),
     player_learning_scalings = [1, -1],
