@@ -99,7 +99,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     initial_state;
     min_action_probability = 0.02,
-    dual_regularization_weight = 1e-4,
+    dual_regularization_weight = 2e-4,
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
