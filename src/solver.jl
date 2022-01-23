@@ -98,7 +98,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     initial_state;
-    min_action_probability = 0.02,
+    min_action_probability = 0.05,
     dual_regularization_weight = 1e-4,
 )
     # TODO: make this a parameter
