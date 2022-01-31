@@ -14,11 +14,17 @@ function NNActionGenerator(;
     n_actions,
     learning_rate,
     rng,
-    initial_parameters::Nothing,
+    initial_parameters,
     hidden_dim = 100,
     n_hidden_layers = 2,
 )
-    init(in, out) = Flux.glorot_uniform(rng, in, out)
+    if initial_parameters === :random
+        init = (in, out) -> Flux.glorot_uniform(rng, in, out)
+    elseif initial_parameters === :all_zero
+        init = (in, out) -> zeros(in, out)
+    else
+        @assert false
+    end
 
     model = Chain(
         Dense(state_dim, hidden_dim, tanh; init),
@@ -38,18 +44,8 @@ function (g::NNActionGenerator)(states)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
-function update_parameters!(g, ∇; noise = nothing, rng = nothing, action_gradient_scaling)
-    θ = Flux.params(g)
-    p = only(θ)
-    ∇[p] .*= action_gradient_scaling'
-    Optimise.update!(g.optimizer, θ, ∇)
-
-    if !isnothing(noise)
-        for p in θ
-            p .+= randn(rng, size(p)) * noise
-        end
-    end
-    nothing
+function preprocess_gradients!(∇, g::NNActionGenerator, θ; kwargs...)
+    ∇
 end
 
 #== OnlineOptimizationActionGenerator ==#
@@ -85,4 +81,24 @@ end
 
 function (g::OnlineOptimizationActionGenerator)(_)
     collect(eachcol(g.params))
+end
+
+function preprocess_gradients!(∇, ::OnlineOptimizationActionGenerator, θ; action_gradient_scaling)
+    p = only(θ)
+    ∇[p] .*= action_gradient_scaling'
+end
+
+#=== shared implementations ===#
+
+function update_parameters!(g, ∇; noise = nothing, rng = nothing, action_gradient_scaling)
+    θ = Flux.params(g)
+    preprocess_gradients!(∇, g, θ; action_gradient_scaling)
+    Optimise.update!(g.optimizer, θ, ∇)
+
+    if !isnothing(noise)
+        for p in θ
+            p .+= randn(rng, size(p)) * noise
+        end
+    end
+    nothing
 end
