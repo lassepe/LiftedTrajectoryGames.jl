@@ -24,16 +24,12 @@ function LiftedTrajectoryGameSolver(
     rng = Random.MersenneTwister(1),
     initial_parameters,
     n_actions = [2, 2],
-    network_configs = Iterators.repeated((;
-        n_hidden_layers = 2,
-        hidden_dim = 100,
-        learning_rate = 100.0,
-    )),
+    reference_generator_constructors = Iterators.repeated(NNActionGenerator),
+    learning_rates = Iterators.repeated(0.05),
     trajectory_parameterizations = Iterators.repeated(
-        InputReferenceParameterization(; α = 3, params_abs_max = 5),
+        InputReferenceParameterization(; α = 3, params_abs_max = 10),
     ),
     trajectory_solver = QPSolver(),
-    player_learning_scalings = [1, -1],
     kwargs...,
 )
     num_players(game) == 2 ||
@@ -53,22 +49,25 @@ function LiftedTrajectoryGameSolver(
             )
         end
 
+    signed_learning_rates = map(*, learning_rates, [1.0, -1.0])
+
     trajectory_parameter_generators = map(
+        reference_generator_constructors,
         trajectory_generators,
-        player_learning_scalings,
-        network_configs,
         n_actions,
         initial_parameters,
-    ) do trajectory_generator,
-    learning_rate_sign,
-    network_config,
+        signed_learning_rates,
+    ) do constructor,
+    trajectory_generator,
     n_player_actions,
-    initial_player_parameters
-        OnlineOptimizationActionGenerator(;
+    initial_player_parameters,
+    signed_learning_rate
+        constructor(;
+            state_dim = state_dim(game.dynamics),
             n_params = param_dim(trajectory_generator),
             n_actions = n_player_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
-            learning_rate = network_config.learning_rate * learning_rate_sign,
+            learning_rate = signed_learning_rate,
             rng,
             initial_parameters = initial_player_parameters,
         )

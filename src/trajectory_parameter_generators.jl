@@ -9,14 +9,14 @@ end
 
 function NNActionGenerator(;
     state_dim,
-    hidden_dim,
-    n_hidden_layers,
     n_params,
     params_abs_max,
     n_actions,
     learning_rate,
     rng,
     initial_parameters::Nothing,
+    hidden_dim = 100,
+    n_hidden_layers = 2,
 )
     init(in, out) = Flux.glorot_uniform(rng, in, out)
 
@@ -60,6 +60,7 @@ struct OnlineOptimizationActionGenerator{T<:AbstractMatrix,O}
 end
 
 function OnlineOptimizationActionGenerator(;
+    state_dim = nothing,
     n_actions,
     n_params,
     params_abs_max,
