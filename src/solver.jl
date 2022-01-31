@@ -94,7 +94,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     initial_state;
-    min_action_probability = 0.0,
+    dual_regularization_weight = 1e-4,
+    min_action_probability = 0.05,
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
@@ -136,13 +137,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
 
         Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
-        regularization =
+        dual_regularization =
             (
                 sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
                 sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
             ) / solver.planning_horizon
 
-        Vs.V1 + 1e-3 * regularization
+        Vs.V1 + dual_regularization_weight * dual_regularization
     end
 
     ∇V1 = if any(solver.enable_learning)
