@@ -101,7 +101,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    local Vs, mixing_strategies, player_references, player_trajectory_candidates, regularization
+    local Vs, mixing_strategies, player_references, player_trajectory_candidates
 
     function forward_pass()
         player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
