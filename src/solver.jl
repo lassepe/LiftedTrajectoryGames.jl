@@ -22,7 +22,7 @@ function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
     planning_horizon;
     rng = Random.MersenneTwister(1),
-    initial_parameters,
+    initial_parameters = Iterators.repeated(:random),
     n_actions = [2, 2],
     reference_generator_constructors = Iterators.repeated(NNActionGenerator),
     learning_rates = Iterators.repeated(0.05),
