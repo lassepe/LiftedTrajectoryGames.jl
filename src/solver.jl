@@ -1,4 +1,4 @@
-Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
+Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR,TC}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::TA
     "A acollection of trajectory generators, one for each player in the game"
@@ -13,6 +13,8 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR}
     rng::TR = Random.MersenneTwister(1)
     "A flag that can be set to enable/disable learning"
     enable_learning::Vector{Bool} = [true, true]
+    "A vector of cached trajectories for each player"
+    trajectory_caches::Vector{TC} = Any[nothing, nothing]
 end
 
 """
@@ -96,6 +98,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     initial_state;
     dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
+    enable_caching = [false, false],
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
@@ -107,10 +110,16 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
         player_trajectory_candidates = map(
             blocks(initial_state),
+            enable_caching,
+            solver.trajectory_caches,
             player_references,
             solver.trajectory_generators,
-        ) do substate, refs, trajectory_generator
-            [trajectory_generator(substate, ref) for ref in refs]
+        ) do substate, enable_caching, cache, refs, trajectory_generator
+            if enable_caching && !isnothing(cache)
+                cache
+            else
+                [trajectory_generator(substate, ref) for ref in refs]
+            end
         end
 
         cost_tensor =
@@ -153,6 +162,12 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         nothing
     end
 
+    for ii in eachindex(player_trajectory_candidates)
+        if enable_caching[ii]
+            solver.trajectory_caches[ii] = player_trajectory_candidates[ii]
+        end
+    end
+
     γs = map(
         Iterators.countfrom(),
         mixing_strategies,
@@ -165,7 +180,10 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             ∇_norm = if isnothing(∇V1)
                 0.0
             else
-                sum(norm(∇V1[p] for p in Flux.params(solver.trajectory_parameter_generators...)))
+                sum(
+                    norm(something(∇V1[p], 0.0)) for
+                    p in Flux.params(solver.trajectory_parameter_generators...)
+                )
             end,
         )
         LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
