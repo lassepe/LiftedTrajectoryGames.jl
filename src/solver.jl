@@ -35,7 +35,7 @@ function LiftedTrajectoryGameSolver(
     kwargs...,
 )
     num_players(game) == 2 ||
-        error("Currently, onlye 2-player problems are supported by this solver.")
+        error("Currently, only 2-player problems are supported by this solver.")
 
     # setup a trajectory generator for every player
     trajectory_generators =
