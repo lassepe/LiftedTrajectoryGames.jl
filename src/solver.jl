@@ -14,7 +14,7 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR,TC}
     "A flag that can be set to enable/disable learning"
     enable_learning::Vector{Bool} = [true, true]
     "A vector of cached trajectories for each player"
-    trajectory_caches::Vector{TC} = Any[nothing, nothing]
+    trajectory_caches::Vector{TC} = [nothing, nothing]
 end
 
 """
@@ -115,7 +115,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             player_references,
             solver.trajectory_generators,
         ) do substate, enable_caching, cache, refs, trajectory_generator
-            if enable_caching && !isnothing(cache)
+            if !isnothing(cache) && enable_caching
                 cache
             else
                 [trajectory_generator(substate, ref) for ref in refs]
@@ -162,9 +162,11 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         nothing
     end
 
-    for ii in eachindex(player_trajectory_candidates)
-        if enable_caching[ii]
-            solver.trajectory_caches[ii] = player_trajectory_candidates[ii]
+    if !(eltype(solver.trajectory_caches) <: Nothing)
+        for ii in eachindex(player_trajectory_candidates)
+            if enable_caching[ii]
+                solver.trajectory_caches[ii] = player_trajectory_candidates[ii]
+            end
         end
     end
 
