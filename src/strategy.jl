@@ -32,26 +32,26 @@ function (strategy::LiftedTrajectoryStrategy)(state, t)
                             """))
     end
 
-    PrecomputedAction((; x = xs[t], u = us[t]), xs[t + 1])
+    PrecomputedAction(xs[t], us[t], xs[t + 1])
 end
 
-struct PrecomputedAction{TR,TN}
+struct PrecomputedAction{TS,TC,TN}
     # TODO: Fix before merging anywhere! Abusing `reference_state` to store control input
-    reference_state::TR
+    reference_state::TS
+    reference_control::TC
     next_substate::TN
 end
 
 function TrajectoryGamesBase.join_actions(actions::AbstractVector{<:PrecomputedAction})
-    joint_reference_state = (;
-        x = mortar([a.reference_state.x for a in actions]),
-        u = mortar([a.reference_state.u for a in actions]),
-    )
+    joint_reference_state = mortar([a.reference_state for a in actions])
+    joint_reference_control = mortar([a.reference_control for a in actions])
+
     joint_next_state = mortar([a.next_substate for a in actions])
-    PrecomputedAction(joint_reference_state, joint_next_state)
+    PrecomputedAction(joint_reference_state, joint_reference_control, joint_next_state)
 end
 
 function (dynamics::AbstractDynamics)(state, action::PrecomputedAction, t = nothing)
-    if action.reference_state.x != state
+    if action.reference_state != state
         throw(
             ArgumentError("""
                           This precomputed action is only valid for states \
