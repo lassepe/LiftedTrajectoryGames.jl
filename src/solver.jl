@@ -133,7 +133,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 us = map(t1.us, t2.us) do u1, u2
                     mortar([u1, u2])
                 end
-                game.cost(1, xs, us)
+                game.cost(xs, us)
             end
 
         mixing_strategies = let
