@@ -14,7 +14,7 @@ using TrajectoryGamesBase:
     AbstractDynamics,
     AbstractStrategy,
     JointStrategy,
-    ZeroSumCostStructure,
+    ZeroSumTrajectoryGameCost,
     ProductDynamics,
     state_dim,
     num_players,

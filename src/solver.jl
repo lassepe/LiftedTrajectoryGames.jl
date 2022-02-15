@@ -21,7 +21,7 @@ end
 Convenience constructor to drive a suitable solver directly form a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
+    game::TrajectoryGame{<:ProductDynamics,<:ZeroSumTrajectoryGameCost},
     planning_horizon;
     rng = Random.MersenneTwister(1),
     initial_parameters = Iterators.repeated(:random),
@@ -94,7 +94,7 @@ end
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
-    game::TrajectoryGame{<:ZeroSumCostStructure,<:ProductDynamics},
+    game::TrajectoryGame{<:ProductDynamics,<:ZeroSumTrajectoryGameCost},
     initial_state;
     dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
