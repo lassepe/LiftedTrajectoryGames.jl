@@ -91,6 +91,70 @@ function huber(x; δ = 1)
     end
 end
 
+function forward_pass(;
+    solver,
+    game,
+    initial_state,
+    dual_regularization_weight,
+    min_action_probability,
+    enable_caching,
+)
+    player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
+    player_trajectory_candidates = map(
+        blocks(initial_state),
+        enable_caching,
+        solver.trajectory_caches,
+        player_references,
+        solver.trajectory_generators,
+    ) do substate, enable_caching, cache, refs, trajectory_generator
+        if !isnothing(cache) && enable_caching
+            cache
+        else
+            [trajectory_generator(substate, ref) for ref in refs]
+        end
+    end
+
+    cost_tensor = map(
+        # TODO: make this generic. Ideally, `player_trajectory_candidates` needs to be a tuple so
+        # that the spatting is can be done in a type-stable manner
+        Iterators.product(
+            eachindex(player_trajectory_candidates[1]),
+            eachindex(player_trajectory_candidates[2]),
+        ),
+    ) do (i1, i2)
+        t1 = player_trajectory_candidates[1][i1]
+        t2 = player_trajectory_candidates[2][i2]
+
+        xs = map(t1.xs, t2.xs) do x1, x2
+            mortar([x1, x2])
+        end
+        us = map(t1.us, t2.us) do u1, u2
+            mortar([u1, u2])
+        end
+        game.cost(xs, us)
+    end
+
+    mixing_strategies = let
+        sol = FiniteGames.solve_mixed_nash(
+            solver.finite_game_solver,
+            cost_tensor;
+            ϵ = min_action_probability,
+        )
+        (; sol.x, sol.y)
+    end
+
+    Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
+    dual_regularization =
+        (
+            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
+            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
+        ) / solver.planning_horizon
+
+    loss = Vs.V1 + dual_regularization_weight * dual_regularization
+
+    (; loss, Vs, mixing_strategies, player_trajectory_candidates)
+end
+
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
@@ -104,61 +168,17 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    local Vs, mixing_strategies, player_references, player_trajectory_candidates
-
-    function forward_pass()
-        player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
-        player_trajectory_candidates = map(
-            blocks(initial_state),
+    ∇V1 = begin#if any(solver.enable_learning)
+        #Zygote.gradient(forward_pass, Flux.params(solver.trajectory_parameter_generators...))
+        #else
+        (; Vs, mixing_strategies, player_trajectory_candidates) = forward_pass(;
+            solver,
+            game,
+            initial_state,
+            dual_regularization_weight,
+            min_action_probability,
             enable_caching,
-            solver.trajectory_caches,
-            player_references,
-            solver.trajectory_generators,
-        ) do substate, enable_caching, cache, refs, trajectory_generator
-            if !isnothing(cache) && enable_caching
-                cache
-            else
-                [trajectory_generator(substate, ref) for ref in refs]
-            end
-        end
-
-        cost_tensor =
-            map(Iterators.product(eachindex.(player_trajectory_candidates)...)) do (i1, i2)
-                t1 = player_trajectory_candidates[1][i1]
-                t2 = player_trajectory_candidates[2][i2]
-
-                xs = map(t1.xs, t2.xs) do x1, x2
-                    mortar([x1, x2])
-                end
-                us = map(t1.us, t2.us) do u1, u2
-                    mortar([u1, u2])
-                end
-                game.cost(xs, us)
-            end
-
-        mixing_strategies = let
-            sol = FiniteGames.solve_mixed_nash(
-                solver.finite_game_solver,
-                cost_tensor;
-                ϵ = min_action_probability,
-            )
-            (; sol.x, sol.y)
-        end
-
-        Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
-        dual_regularization =
-            (
-                sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
-                sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
-            ) / solver.planning_horizon
-
-        Vs.V1 + dual_regularization_weight * dual_regularization
-    end
-
-    ∇V1 = if any(solver.enable_learning)
-        Zygote.gradient(forward_pass, Flux.params(solver.trajectory_parameter_generators...))
-    else
-        forward_pass()
+        )
         nothing
     end
 
@@ -191,20 +211,20 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
-    for (parameter_generator, weights, enable_player_learning) in
-        zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
-        if !enable_player_learning
-            continue
-        end
-        action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
-        update_parameters!(
-            parameter_generator,
-            ∇V1;
-            noise = parameter_noise,
-            solver.rng,
-            action_gradient_scaling,
-        )
-    end
+    # for (parameter_generator, weights, enable_player_learning) in
+    #     zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
+    #     if !enable_player_learning
+    #         continue
+    #     end
+    #     action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
+    #     update_parameters!(
+    #         parameter_generator,
+    #         ∇V1;
+    #         noise = parameter_noise,
+    #         solver.rng,
+    #         action_gradient_scaling,
+    #     )
+    # end
 
     JointStrategy(γs)
 end
