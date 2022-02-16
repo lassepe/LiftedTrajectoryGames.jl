@@ -168,10 +168,26 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    ∇V1 = begin#if any(solver.enable_learning)
-        #Zygote.gradient(forward_pass, Flux.params(solver.trajectory_parameter_generators...))
-        #else
-        (; Vs, mixing_strategies, player_trajectory_candidates) = forward_pass(;
+    ∇V1 = if any(solver.enable_learning)
+        res, back = Zygote.pullback(
+            () -> forward_pass(;
+                solver,
+                game,
+                initial_state,
+                dual_regularization_weight,
+                min_action_probability,
+                enable_caching,
+            ),
+            Flux.params(solver.trajectory_parameter_generators...),
+        )
+        back((;
+            loss = 1,
+            Vs = nothing,
+            mixing_strategies = nothing,
+            player_trajectory_candidates = nothing,
+        ))
+    else
+        res = forward_pass(;
             solver,
             game,
             initial_state,
@@ -181,6 +197,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         )
         nothing
     end
+
+    (; Vs, mixing_strategies, player_trajectory_candidates) = res
 
     if !(eltype(solver.trajectory_caches) <: Nothing)
         for ii in eachindex(player_trajectory_candidates)
@@ -211,20 +229,20 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
-    # for (parameter_generator, weights, enable_player_learning) in
-    #     zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
-    #     if !enable_player_learning
-    #         continue
-    #     end
-    #     action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
-    #     update_parameters!(
-    #         parameter_generator,
-    #         ∇V1;
-    #         noise = parameter_noise,
-    #         solver.rng,
-    #         action_gradient_scaling,
-    #     )
-    # end
+    for (parameter_generator, weights, enable_player_learning) in
+        zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
+        if !enable_player_learning
+            continue
+        end
+        action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
+        update_parameters!(
+            parameter_generator,
+            ∇V1;
+            noise = parameter_noise,
+            solver.rng,
+            action_gradient_scaling,
+        )
+    end
 
     JointStrategy(γs)
 end
