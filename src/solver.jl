@@ -1,4 +1,4 @@
-Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR,TC}
+Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR,TL,TC}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::TA
     "A acollection of trajectory generators, one for each player in the game"
@@ -12,9 +12,9 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR,TC}
     "A random number generator to generate non-deterministic strategies."
     rng::TR = Random.MersenneTwister(1)
     "A flag that can be set to enable/disable learning"
-    enable_learning::Vector{Bool} = [true, true]
+    enable_learning::TL = (true, true)
     "A vector of cached trajectories for each player"
-    trajectory_caches::Vector{TC} = [nothing, nothing]
+    trajectory_caches::TC = (nothing, nothing)
 end
 
 """
@@ -24,11 +24,12 @@ function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ProductDynamics,<:ZeroSumTrajectoryGameCost},
     planning_horizon;
     rng = Random.MersenneTwister(1),
-    initial_parameters = Iterators.repeated(:random),
-    n_actions = [2, 2],
-    reference_generator_constructors = Iterators.repeated(NNActionGenerator),
-    learning_rates = Iterators.repeated(0.05),
-    trajectory_parameterizations = Iterators.repeated(
+    initial_parameters = (:random, :random),
+    n_actions = (2, 2),
+    reference_generator_constructors = (NNActionGenerator, NNActionGenerator),
+    learning_rates = (0.05, 0.05),
+    trajectory_parameterizations = (
+        InputReferenceParameterization(; α = 3, params_abs_max = 10),
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
     ),
     trajectory_solver = QPSolver(),
@@ -51,7 +52,7 @@ function LiftedTrajectoryGameSolver(
             )
         end
 
-    signed_learning_rates = map(*, learning_rates, [1.0, -1.0])
+    signed_learning_rates = map(*, learning_rates, (1.0, -1.0))
 
     trajectory_parameter_generators = map(
         reference_generator_constructors,
@@ -100,6 +101,7 @@ function forward_pass(;
     enable_caching,
 )
     player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
+
     player_trajectory_candidates = map(
         blocks(initial_state),
         enable_caching,
@@ -115,8 +117,6 @@ function forward_pass(;
     end
 
     cost_tensor = map(
-        # TODO: make this generic. Ideally, `player_trajectory_candidates` needs to be a tuple so
-        # that the spatting is can be done in a type-stable manner
         Iterators.product(
             eachindex(player_trajectory_candidates[1]),
             eachindex(player_trajectory_candidates[2]),
@@ -162,13 +162,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     initial_state;
     dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
-    enable_caching = [false, false],
+    enable_caching = (false, false),
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    ∇V1 = if any(solver.enable_learning)
+    ∇V1 = if !isnothing(solver.enable_learning) && any(solver.enable_learning)
         res, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
@@ -229,19 +229,21 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
-    for (parameter_generator, weights, enable_player_learning) in
-        zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
-        if !enable_player_learning
-            continue
+    if !isnothing(solver.enable_learning)
+        for (parameter_generator, weights, enable_player_learning) in
+            zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
+            if !enable_player_learning
+                continue
+            end
+            action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
+            update_parameters!(
+                parameter_generator,
+                ∇V1;
+                noise = parameter_noise,
+                solver.rng,
+                action_gradient_scaling,
+            )
         end
-        action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
-        update_parameters!(
-            parameter_generator,
-            ∇V1;
-            noise = parameter_noise,
-            solver.rng,
-            action_gradient_scaling,
-        )
     end
 
     JointStrategy(γs)
