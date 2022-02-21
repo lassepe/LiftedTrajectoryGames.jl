@@ -163,11 +163,14 @@ function forward_pass(;
     Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
     dual_regularization =
         (
-            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[1]) -
-            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2])
-        ) / solver.planning_horizon
+            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[1]),
+            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2]),
+        ) ./ solver.planning_horizon
 
-    loss = Vs.V1 + dual_regularization_weight * dual_regularization
+    loss = (;
+        V1 = Vs.V1 + dual_regularization_weight * dual_regularization[1],
+        V2 = Vs.V2 + dual_regularization_weight * dual_regularization[2],
+    )
 
     (; loss, Vs, mixing_strategies, trajectory_candidates_per_player)
 end
@@ -185,7 +188,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    ∇V1 = if !isnothing(solver.enable_learning) && any(solver.enable_learning)
+    if !isnothing(solver.enable_learning) && any(solver.enable_learning)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
@@ -197,12 +200,27 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             ),
             Flux.params(solver.trajectory_parameter_generators...),
         )
-        back((;
-            loss = 1,
-            Vs = nothing,
-            mixing_strategies = nothing,
-            trajectory_candidates_per_player = nothing,
-        ))
+        if solver.enable_learning[1]
+            ∇V1 =
+                back((;
+                    loss = (; V1 = 1, V2 = nothing),
+                    Vs = nothing,
+                    mixing_strategies = nothing,
+                    trajectory_candidates_per_player = nothing,
+                )) |> copy
+        else
+            ∇V1 = nothing
+        end
+        if solver.enable_learning[2]
+            ∇V2 = back((;
+                loss = (; V1 = nothing, V2 = 1),
+                Vs = nothing,
+                mixing_strategies = nothing,
+                trajectory_candidates_per_player = nothing,
+            ))
+        else
+            ∇V2 = nothing
+        end
     else
         forward_pass_result = forward_pass(;
             solver,
@@ -212,9 +230,11 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             min_action_probability,
             enable_caching_per_player,
         )
-        nothing
+        ∇V1 = nothing
+        ∇V2 = nothing
     end
 
+    gradients_per_player = (∇V1, ∇V2)
     (; Vs, mixing_strategies, trajectory_candidates_per_player) = forward_pass_result
 
     if !(eltype(solver.trajectory_caches) <: Nothing)
@@ -247,15 +267,19 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     if !isnothing(solver.enable_learning)
-        for (parameter_generator, weights, enable_player_learning) in
-            zip(solver.trajectory_parameter_generators, mixing_strategies, solver.enable_learning)
+        for (parameter_generator, weights, enable_player_learning, ∇V) in zip(
+            solver.trajectory_parameter_generators,
+            mixing_strategies,
+            solver.enable_learning,
+            gradients_per_player,
+        )
             if !enable_player_learning
                 continue
             end
             action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
             update_parameters!(
                 parameter_generator,
-                ∇V1;
+                ∇V;
                 noise = parameter_noise,
                 solver.rng,
                 action_gradient_scaling,
