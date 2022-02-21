@@ -140,17 +140,17 @@ function forward_pass(;
             cost_tensor;
             ϵ = min_action_probability,
         )
-        (; sol.x, sol.y)
+        (; x=sol.x[1], y=sol.x[2])
     end
 
-    Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
+    Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor).V
     dual_regularization =
         (
             sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
             sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
         ) / solver.planning_horizon
 
-    loss = Vs.V1 + dual_regularization_weight * dual_regularization
+    loss = Vs[1] + dual_regularization_weight * dual_regularization
 
     (; loss, Vs, mixing_strategies, player_trajectory_candidates)
 end
