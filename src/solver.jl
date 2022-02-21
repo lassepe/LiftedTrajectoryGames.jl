@@ -52,25 +52,23 @@ function LiftedTrajectoryGameSolver(
             )
         end
 
-    signed_learning_rates = map(*, learning_rates, (1.0, -1.0))
-
     trajectory_parameter_generators = map(
         reference_generator_constructors,
         trajectory_generators,
         n_actions,
         initial_parameters,
-        signed_learning_rates,
+        learning_rates,
     ) do constructor,
     trajectory_generator,
     n_player_actions,
     initial_player_parameters,
-    signed_learning_rate
+    learning_rate
         constructor(;
             state_dim = state_dim(game.dynamics),
             n_params = param_dim(trajectory_generator),
             n_actions = n_player_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
-            learning_rate = signed_learning_rate,
+            learning_rate,
             rng,
             initial_parameters = initial_player_parameters,
         )
@@ -138,7 +136,7 @@ function forward_pass(;
         eachindex(trajectory_candidates_per_player[1]),
         eachindex(trajectory_candidates_per_player[2]),
     )
-    cost_tensor = map(trajectory_pairings) do (i1, i2)
+    costs_per_trajectory_pairing = map(trajectory_pairings) do (i1, i2)
         t1 = trajectory_candidates_per_player[1][i1]
         t2 = trajectory_candidates_per_player[2][i2]
 
@@ -151,25 +149,38 @@ function forward_pass(;
         game.cost(xs, us)
     end
 
+    # transpose matrix of tuples to tuple of matrices
+    costs_per_player = map(1:2) do player_i
+        map(costs_per_trajectory_pairing) do pairing
+            pairing[player_i]
+        end
+    end
+
     mixing_strategies = let
         sol = FiniteGames.solve_mixed_nash(
             solver.finite_game_solver,
-            cost_tensor;
+            costs_per_player[1],
+            costs_per_player[2];
             ϵ = min_action_probability,
         )
         (; sol.x, sol.y)
     end
 
-    Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
+    Vs = FiniteGames.game_cost(
+        mixing_strategies.x,
+        mixing_strategies.y,
+        costs_per_player[1],
+        costs_per_player[2],
+    )
     dual_regularization =
         (
             sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[1]),
             sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2]),
         ) ./ solver.planning_horizon
 
-    loss = (;
-        V1 = Vs.V1 + dual_regularization_weight * dual_regularization[1],
-        V2 = Vs.V2 + dual_regularization_weight * dual_regularization[2],
+    loss = (
+        Vs.V1 + dual_regularization_weight * dual_regularization[1],
+        Vs.V2 + dual_regularization_weight * dual_regularization[2],
     )
 
     (; loss, Vs, mixing_strategies, trajectory_candidates_per_player)
@@ -178,7 +189,7 @@ end
 # TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
-    game::TrajectoryGame{<:ProductDynamics,<:ZeroSumTrajectoryGameCost},
+    game::TrajectoryGame{<:ProductDynamics,<:AbstractTrajectoryGameCost},
     initial_state;
     dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
@@ -203,7 +214,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         if solver.enable_learning[1]
             ∇V1 =
                 back((;
-                    loss = (; V1 = 1, V2 = nothing),
+                    loss = (1, nothing),
                     Vs = nothing,
                     mixing_strategies = nothing,
                     trajectory_candidates_per_player = nothing,
@@ -213,7 +224,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
         if solver.enable_learning[2]
             ∇V2 = back((;
-                loss = (; V1 = nothing, V2 = 1),
+                loss = (nothing, 1),
                 Vs = nothing,
                 mixing_strategies = nothing,
                 trajectory_candidates_per_player = nothing,
