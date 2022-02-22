@@ -261,15 +261,16 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         mixing_strategies,
         Vs,
         trajectory_candidates_per_player,
-    ) do player_i, weights, V, trajectory_candidates
+        gradients_per_player,
+    ) do player_i, weights, V, trajectory_candidates, ∇V
         info = (;
             V,
             # TODO: maybe allow to disable
-            ∇_norm = if isnothing(∇V1)
+            ∇_norm = if isnothing(∇V)
                 0.0
             else
                 sum(
-                    norm(something(∇V1[p], 0.0)) for
+                    norm(something(∇V[p], 0.0)) for
                     p in Flux.params(solver.trajectory_parameter_generators...)
                 )
             end,
