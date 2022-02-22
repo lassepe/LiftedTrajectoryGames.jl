@@ -391,7 +391,7 @@ uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
 version = "0.12.7"
 
 [[deps.FiniteGames]]
-deps = ["ChainRulesCore", "GeometryBasics", "LinearAlgebra", "OSQP", "SparseArrays", "StatsBase", "Symbolics", "Tullio"]
+deps = ["ChainRulesCore", "GeometryBasics", "LinearAlgebra", "NashEquilibrium", "OSQP", "SparseArrays", "StatsBase", "Symbolics", "Tullio"]
 path = "../FiniteGames"
 uuid = "02142a96-bdca-44e0-a5fe-3e991313ea5a"
 version = "0.1.0-dev"
@@ -690,9 +690,9 @@ version = "4.7.0"
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "62115afed394c016c2d3096c5b85c407b48be96b"
+git-tree-sha1 = "f7f5dd0fb39209f4d28ca59d0d4e24579ad325fe"
 uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.13+1"
+version = "0.0.13+2"
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -944,6 +944,14 @@ git-tree-sha1 = "f755f36b19a5116bb580de457cda0c140153f283"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "0.3.6"
 
+[[deps.NashEquilibrium]]
+deps = ["LinearAlgebra", "PATHSolver", "SparseArrays", "Test"]
+git-tree-sha1 = "cc1414253ede08a05bb9045d4e4d6029ddb08ca6"
+repo-rev = "main"
+repo-url = "https://github.com/4estlaine/NashEquilibrium.jl"
+uuid = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
+version = "0.1.0"
+
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore"]
 git-tree-sha1 = "18efc06f6ec36a8b801b23f076e3c6ac7c3bf153"
@@ -1030,6 +1038,12 @@ version = "1.3.2+0"
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.4.1"
+
+[[deps.PATHSolver]]
+deps = ["Libdl", "MathOptInterface", "SparseArrays", "Test"]
+git-tree-sha1 = "8bddf6806630f8fac5f0f3bb5af6e76d77ce9e47"
+uuid = "f5f7c340-0bb3-5c69-969a-41884d311d1b"
+version = "1.1.1"
 
 [[deps.PCRE_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1577,9 +1591,9 @@ version = "1.6.38+0"
 
 [[deps.libvorbis_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll", "Pkg"]
-git-tree-sha1 = "c45f4e40e7aafe9d086379e5578947ec8b95a8fb"
+git-tree-sha1 = "b910cb81ef3fe6e78bf6acee440bda86fd6ae00c"
 uuid = "f27f6e37-5d2b-51aa-960f-b287f2bc3b7a"
-version = "1.3.7+0"
+version = "1.3.7+1"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
