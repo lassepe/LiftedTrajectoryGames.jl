@@ -92,15 +92,13 @@ end
 
 function generate_trajectory_candidates(
     initial_state,
-    trajectory_parameter_generators,
+    references_per_player,
     trajectory_generators,
     enable_caching_per_player,
     trajectory_caches,
 )
-    references_per_player =
-        map(generator -> generator(initial_state), trajectory_parameter_generators)
     state_per_player = blocks(initial_state)
-    trajectory_candidates = map(
+    candidates_per_player = map(
         state_per_player,
         references_per_player,
         trajectory_generators,
@@ -113,7 +111,7 @@ function generate_trajectory_candidates(
             [trajectory_generator(state, reference) for reference in references]
         end
     end
-    trajectory_candidates
+    candidates_per_player
 end
 
 function forward_pass(;
@@ -124,9 +122,13 @@ function forward_pass(;
     min_action_probability,
     enable_caching_per_player,
 )
+    # π_θ
+    trajectory_references_per_player =
+        map(generator -> generator(initial_state), solver.trajectory_parameter_generators)
+    # TRAJ
     trajectory_candidates_per_player = generate_trajectory_candidates(
         initial_state,
-        solver.trajectory_parameter_generators,
+        trajectory_references_per_player,
         solver.trajectory_generators,
         enable_caching_per_player,
         solver.trajectory_caches,
@@ -136,6 +138,7 @@ function forward_pass(;
         eachindex(trajectory_candidates_per_player[1]),
         eachindex(trajectory_candidates_per_player[2]),
     )
+    # f
     costs_per_trajectory_pairing = map(trajectory_pairings) do (i1, i2)
         t1 = trajectory_candidates_per_player[1][i1]
         t2 = trajectory_candidates_per_player[2][i2]
@@ -156,6 +159,7 @@ function forward_pass(;
         end
     end
 
+    # BMG
     mixing_strategies = let
         sol = FiniteGames.solve_mixed_nash(
             solver.finite_game_solver,
@@ -166,7 +170,8 @@ function forward_pass(;
         (; sol.x, sol.y)
     end
 
-    Vs = FiniteGames.game_cost(
+    # L
+    game_value_per_player = FiniteGames.game_cost(
         mixing_strategies.x,
         mixing_strategies.y,
         costs_per_player[1],
@@ -178,12 +183,18 @@ function forward_pass(;
             sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2]),
         ) ./ solver.planning_horizon
 
-    loss = (
-        Vs.V1 + dual_regularization_weight * dual_regularization[1],
-        Vs.V2 + dual_regularization_weight * dual_regularization[2],
+    loss_per_player = (
+        game_value_per_player.V1 + dual_regularization_weight * dual_regularization[1],
+        game_value_per_player.V2 + dual_regularization_weight * dual_regularization[2],
     )
 
-    (; loss, Vs, mixing_strategies, trajectory_candidates_per_player)
+    (;
+        loss_per_player,
+        game_value_per_player,
+        mixing_strategies,
+        trajectory_candidates_per_player,
+        trajectory_references_per_player,
+    )
 end
 
 # TODO: Re-introduce state-value learning
@@ -194,11 +205,9 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
     enable_caching_per_player = (false, false),
+    parameter_noise = 0.0,
+    scale_action_gradients = true,
 )
-    # TODO: make this a parameter
-    parameter_noise = 0.0
-    scale_action_gradients = true
-
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
@@ -212,25 +221,27 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             Flux.params(solver.trajectory_parameter_generators...),
         )
         if solver.enable_learning[1]
-            ∇V1 =
+            ∇L_1 =
                 back((;
-                    loss = (1, nothing),
-                    Vs = nothing,
+                    loss_per_player = (1, nothing),
+                    game_value_per_player = nothing,
                     mixing_strategies = nothing,
                     trajectory_candidates_per_player = nothing,
+                    trajectory_references_per_player = nothing,
                 )) |> copy
         else
-            ∇V1 = nothing
+            ∇L_1 = nothing
         end
         if solver.enable_learning[2]
-            ∇V2 = back((;
-                loss = (nothing, 1),
-                Vs = nothing,
+            ∇L_2 = back((;
+                loss_per_player = (nothing, 1),
+                game_value_per_player = nothing,
                 mixing_strategies = nothing,
                 trajectory_candidates_per_player = nothing,
+                trajectory_references_per_player = nothing,
             ))
         else
-            ∇V2 = nothing
+            ∇L_2 = nothing
         end
     else
         forward_pass_result = forward_pass(;
@@ -241,13 +252,21 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             min_action_probability,
             enable_caching_per_player,
         )
-        ∇V1 = nothing
-        ∇V2 = nothing
+        ∇L_1 = nothing
+        ∇L_2 = nothing
     end
 
-    gradients_per_player = (∇V1, ∇V2)
-    (; Vs, mixing_strategies, trajectory_candidates_per_player) = forward_pass_result
+    ∇L_per_player = (∇L_1, ∇L_2)
 
+    (;
+        loss_per_player,
+        game_value_per_player,
+        mixing_strategies,
+        trajectory_candidates_per_player,
+        trajectory_references_per_player,
+    ) = forward_pass_result
+
+    # Store computed trajectories in caches if caching is enabled
     if !(eltype(solver.trajectory_caches) <: Nothing)
         for ii in eachindex(trajectory_candidates_per_player)
             if enable_caching_per_player[ii]
@@ -256,34 +275,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
     end
 
-    γs = map(
-        Iterators.countfrom(),
-        mixing_strategies,
-        Vs,
-        trajectory_candidates_per_player,
-        gradients_per_player,
-    ) do player_i, weights, V, trajectory_candidates, ∇V
-        info = (;
-            V,
-            # TODO: maybe allow to disable
-            ∇_norm = if isnothing(∇V)
-                0.0
-            else
-                sum(
-                    norm(something(∇V[p], 0.0)) for
-                    p in Flux.params(solver.trajectory_parameter_generators...)
-                )
-            end,
-        )
-        LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
-    end
-
+    # Update θ_i if learning is enabled for player i
     if !isnothing(solver.enable_learning)
-        for (parameter_generator, weights, enable_player_learning, ∇V) in zip(
+        for (parameter_generator, weights, enable_player_learning, ∇L) in zip(
             solver.trajectory_parameter_generators,
             mixing_strategies,
             solver.enable_learning,
-            gradients_per_player,
+            ∇L_per_player,
         )
             if !enable_player_learning
                 continue
@@ -291,12 +289,32 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
             update_parameters!(
                 parameter_generator,
-                ∇V;
+                ∇L;
                 noise = parameter_noise,
                 solver.rng,
                 action_gradient_scaling,
             )
         end
+    end
+
+    γs = map(
+        Iterators.countfrom(),
+        mixing_strategies,
+        loss_per_player,
+        trajectory_candidates_per_player,
+        trajectory_references_per_player,
+        ∇L_per_player,
+    ) do player_i, weights, loss, trajectory_candidates, trajectory_references, ∇L
+        ∇L_norm = if isnothing(∇L)
+            0.0
+        else
+            sum(
+                norm(something(∇L[p], 0.0)) for
+                p in Flux.params(solver.trajectory_parameter_generators...)
+            )
+        end
+        info = (; loss, ∇L_norm, trajectory_references)
+        LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
     end
 
     JointStrategy(γs)
