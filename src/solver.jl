@@ -1,16 +1,16 @@
-Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TS,TR,TL,TC}
+Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::TA
     "A acollection of trajectory generators, one for each player in the game"
     trajectory_generators::TT
     "The number of time steps to plan into the future."
     planning_horizon::TH
+    "A random number generator to generate non-deterministic strategies."
+    rng::TR
+    "How much affect the dual regularization has on the costs"
+    dual_regularization_weights::TD
     "The solver for the high-level finite game"
     finite_game_solver::TF = FiniteGames.LemkeHowsonGameSolver()
-    "A value network to predict the game value for each player"
-    statevalue_predictor::TS = nothing
-    "A random number generator to generate non-deterministic strategies."
-    rng::TR = Random.MersenneTwister(1)
     "A flag that can be set to enable/disable learning"
     enable_learning::TL = (true, true)
     "A vector of cached trajectories for each player"
@@ -28,6 +28,7 @@ function LiftedTrajectoryGameSolver(
     n_actions = (2, 2),
     reference_generator_constructors = (NNActionGenerator, NNActionGenerator),
     learning_rates = (0.05, 0.05),
+    dual_regularization_weights = (1e-4, 1e-4),
     trajectory_parameterizations = (
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
@@ -78,6 +79,8 @@ function LiftedTrajectoryGameSolver(
         trajectory_parameter_generators,
         trajectory_generators,
         planning_horizon,
+        rng,
+        dual_regularization_weights,
         kwargs...,
     )
 end
@@ -118,7 +121,6 @@ function forward_pass(;
     solver,
     game,
     initial_state,
-    dual_regularization_weight,
     min_action_probability,
     enable_caching_per_player,
 )
@@ -177,15 +179,15 @@ function forward_pass(;
         costs_per_player[1],
         costs_per_player[2],
     )
-    dual_regularization =
+    dual_regularizations =
         (
             sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[1]),
             sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2]),
         ) ./ solver.planning_horizon
 
     loss_per_player = (
-        game_value_per_player.V1 + dual_regularization_weight * dual_regularization[1],
-        game_value_per_player.V2 + dual_regularization_weight * dual_regularization[2],
+        game_value_per_player.V1 + solver.dual_regularization_weights[1] * dual_regularizations[1],
+        game_value_per_player.V2 + solver.dual_regularization_weights[2] * dual_regularizations[2],
     )
 
     (;
@@ -197,12 +199,10 @@ function forward_pass(;
     )
 end
 
-# TODO: Re-introduce state-value learning
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ProductDynamics,<:AbstractTrajectoryGameCost},
     initial_state;
-    dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
     enable_caching_per_player = (false, false),
     parameter_noise = 0.0,
@@ -214,7 +214,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 solver,
                 game,
                 initial_state,
-                dual_regularization_weight,
                 min_action_probability,
                 enable_caching_per_player,
             ),
@@ -248,7 +247,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             solver,
             game,
             initial_state,
-            dual_regularization_weight,
+            dual_regularization_weights,
             min_action_probability,
             enable_caching_per_player,
         )
