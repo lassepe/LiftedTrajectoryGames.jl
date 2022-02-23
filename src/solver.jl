@@ -190,13 +190,14 @@ function forward_pass(;
         game_value_per_player.V2 + solver.dual_regularization_weights[2] * dual_regularizations[2],
     )
 
-    (;
-        loss_per_player,
+    info = (;
         game_value_per_player,
         mixing_strategies,
         trajectory_candidates_per_player,
         trajectory_references_per_player,
     )
+
+    (; loss_per_player, info)
 end
 
 function TrajectoryGamesBase.solve_trajectory_game!(
@@ -220,25 +221,12 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             Flux.params(solver.trajectory_parameter_generators...),
         )
         if solver.enable_learning[1]
-            ∇L_1 =
-                back((;
-                    loss_per_player = (1, nothing),
-                    game_value_per_player = nothing,
-                    mixing_strategies = nothing,
-                    trajectory_candidates_per_player = nothing,
-                    trajectory_references_per_player = nothing,
-                )) |> copy
+            ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing)) |> copy
         else
             ∇L_1 = nothing
         end
         if solver.enable_learning[2]
-            ∇L_2 = back((;
-                loss_per_player = (nothing, 1),
-                game_value_per_player = nothing,
-                mixing_strategies = nothing,
-                trajectory_candidates_per_player = nothing,
-                trajectory_references_per_player = nothing,
-            ))
+            ∇L_2 = back((; loss_per_player = (nothing, 1), info = nothing))
         else
             ∇L_2 = nothing
         end
@@ -257,19 +245,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     ∇L_per_player = (∇L_1, ∇L_2)
 
-    (;
-        loss_per_player,
-        game_value_per_player,
-        mixing_strategies,
-        trajectory_candidates_per_player,
-        trajectory_references_per_player,
-    ) = forward_pass_result
+    (; loss_per_player, info) = forward_pass_result
 
     # Store computed trajectories in caches if caching is enabled
     if !(eltype(solver.trajectory_caches) <: Nothing)
-        for ii in eachindex(trajectory_candidates_per_player)
+        for ii in eachindex(info.trajectory_candidates_per_player)
             if enable_caching_per_player[ii]
-                solver.trajectory_caches[ii] = trajectory_candidates_per_player[ii]
+                solver.trajectory_caches[ii] = info.trajectory_candidates_per_player[ii]
             end
         end
     end
@@ -278,7 +260,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     if !isnothing(solver.enable_learning)
         for (parameter_generator, weights, enable_player_learning, ∇L) in zip(
             solver.trajectory_parameter_generators,
-            mixing_strategies,
+            info.mixing_strategies,
             solver.enable_learning,
             ∇L_per_player,
         )
@@ -298,10 +280,10 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     γs = map(
         Iterators.countfrom(),
-        mixing_strategies,
+        info.mixing_strategies,
         loss_per_player,
-        trajectory_candidates_per_player,
-        trajectory_references_per_player,
+        info.trajectory_candidates_per_player,
+        info.trajectory_references_per_player,
         ∇L_per_player,
     ) do player_i, weights, loss, trajectory_candidates, trajectory_references, ∇L
         ∇L_norm = if isnothing(∇L)
