@@ -21,7 +21,7 @@ end
 Convenience constructor to drive a suitable solver directly form a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ProductDynamics,<:ZeroSumTrajectoryGameCost},
+    game::TrajectoryGame{<:ProductDynamics,<:AbstractTrajectoryGameCost},
     planning_horizon;
     rng = Random.MersenneTwister(1),
     initial_parameters = (:random, :random),
@@ -92,38 +92,55 @@ function huber(x; δ = 1)
     end
 end
 
+function generate_trajectory_candidates(
+    initial_state,
+    trajectory_parameter_generators,
+    trajectory_generators,
+    enable_caching_per_player,
+    trajectory_caches,
+)
+    references_per_player =
+        map(generator -> generator(initial_state), trajectory_parameter_generators)
+    state_per_player = blocks(initial_state)
+    trajectory_candidates = map(
+        state_per_player,
+        references_per_player,
+        trajectory_generators,
+        enable_caching_per_player,
+        trajectory_caches,
+    ) do state, references, trajectory_generator, enable_caching, cache
+        if enable_caching && !isnothing(cache)
+            cache
+        else
+            [trajectory_generator(state, reference) for reference in references]
+        end
+    end
+    trajectory_candidates
+end
+
 function forward_pass(;
     solver,
     game,
     initial_state,
     dual_regularization_weight,
     min_action_probability,
-    enable_caching,
+    enable_caching_per_player,
 )
-    player_references = map(gen -> gen(initial_state), solver.trajectory_parameter_generators)
-
-    player_trajectory_candidates = map(
-        blocks(initial_state),
-        enable_caching,
-        solver.trajectory_caches,
-        player_references,
+    trajectory_candidates_per_player = generate_trajectory_candidates(
+        initial_state,
+        solver.trajectory_parameter_generators,
         solver.trajectory_generators,
-    ) do substate, enable_caching, cache, refs, trajectory_generator
-        if !isnothing(cache) && enable_caching
-            cache
-        else
-            [trajectory_generator(substate, ref) for ref in refs]
-        end
-    end
+        enable_caching_per_player,
+        solver.trajectory_caches,
+    )
 
-    cost_tensor = map(
-        Iterators.product(
-            eachindex(player_trajectory_candidates[1]),
-            eachindex(player_trajectory_candidates[2]),
-        ),
-    ) do (i1, i2)
-        t1 = player_trajectory_candidates[1][i1]
-        t2 = player_trajectory_candidates[2][i2]
+    trajectory_pairings = Iterators.product(
+        eachindex(trajectory_candidates_per_player[1]),
+        eachindex(trajectory_candidates_per_player[2]),
+    )
+    cost_tensor = map(trajectory_pairings) do (i1, i2)
+        t1 = trajectory_candidates_per_player[1][i1]
+        t2 = trajectory_candidates_per_player[2][i2]
 
         xs = map(t1.xs, t2.xs) do x1, x2
             mortar([x1, x2])
@@ -146,13 +163,13 @@ function forward_pass(;
     Vs = FiniteGames.game_cost(mixing_strategies.x, mixing_strategies.y, cost_tensor)
     dual_regularization =
         (
-            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[1]) -
-            sum(sum(huber.(t.λs)) for t in player_trajectory_candidates[2])
+            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[1]) -
+            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2])
         ) / solver.planning_horizon
 
     loss = Vs.V1 + dual_regularization_weight * dual_regularization
 
-    (; loss, Vs, mixing_strategies, player_trajectory_candidates)
+    (; loss, Vs, mixing_strategies, trajectory_candidates_per_player)
 end
 
 # TODO: Re-introduce state-value learning
@@ -162,21 +179,21 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     initial_state;
     dual_regularization_weight = 1e-4,
     min_action_probability = 0.05,
-    enable_caching = (false, false),
+    enable_caching_per_player = (false, false),
 )
     # TODO: make this a parameter
     parameter_noise = 0.0
     scale_action_gradients = true
 
     ∇V1 = if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        res, back = Zygote.pullback(
+        forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
                 game,
                 initial_state,
                 dual_regularization_weight,
                 min_action_probability,
-                enable_caching,
+                enable_caching_per_player,
             ),
             Flux.params(solver.trajectory_parameter_generators...),
         )
@@ -184,26 +201,26 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             loss = 1,
             Vs = nothing,
             mixing_strategies = nothing,
-            player_trajectory_candidates = nothing,
+            trajectory_candidates_per_player = nothing,
         ))
     else
-        res = forward_pass(;
+        forward_pass_result = forward_pass(;
             solver,
             game,
             initial_state,
             dual_regularization_weight,
             min_action_probability,
-            enable_caching,
+            enable_caching_per_player,
         )
         nothing
     end
 
-    (; Vs, mixing_strategies, player_trajectory_candidates) = res
+    (; Vs, mixing_strategies, trajectory_candidates_per_player) = forward_pass_result
 
     if !(eltype(solver.trajectory_caches) <: Nothing)
-        for ii in eachindex(player_trajectory_candidates)
-            if enable_caching[ii]
-                solver.trajectory_caches[ii] = player_trajectory_candidates[ii]
+        for ii in eachindex(trajectory_candidates_per_player)
+            if enable_caching_per_player[ii]
+                solver.trajectory_caches[ii] = trajectory_candidates_per_player[ii]
             end
         end
     end
@@ -212,7 +229,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         Iterators.countfrom(),
         mixing_strategies,
         Vs,
-        player_trajectory_candidates,
+        trajectory_candidates_per_player,
     ) do player_i, weights, V, trajectory_candidates
         info = (;
             V,
