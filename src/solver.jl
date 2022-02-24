@@ -185,8 +185,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     parameter_noise = 0.0
     scale_action_gradients = true
 
-    ∇V1 = nothing
-    if !isnothing(solver.enable_learning) && any(solver.enable_learning)
+    ∇V1 = if !isnothing(solver.enable_learning) && any(solver.enable_learning)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
@@ -198,7 +197,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             ),
             Flux.params(solver.trajectory_parameter_generators...),
         )
-        ∇V1 = back((;
+        back((;
             loss = 1,
             Vs = nothing,
             mixing_strategies = nothing,
@@ -213,6 +212,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             min_action_probability,
             enable_caching_per_player,
         )
+        nothing
     end
 
     (; Vs, mixing_strategies, trajectory_candidates_per_player) = forward_pass_result
