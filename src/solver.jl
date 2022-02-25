@@ -235,7 +235,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             solver,
             game,
             initial_state,
-            dual_regularization_weights,
             min_action_probability,
             enable_caching_per_player,
         )
