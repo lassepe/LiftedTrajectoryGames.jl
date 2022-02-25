@@ -206,7 +206,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     initial_state;
     min_action_probability = 0.05,
     enable_caching_per_player = (false, false),
-    parameter_noise = 0.0,
+    parameter_noise = 1e-3,
     scale_action_gradients = true,
 )
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
