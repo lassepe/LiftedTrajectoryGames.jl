@@ -155,7 +155,7 @@ function forward_pass(;
     end
 
     # transpose matrix of tuples to tuple of matrices
-    costs_per_player = map(1:2) do player_i
+    costs_per_player = map((1, 2)) do player_i
         map(costs_per_trajectory_pairing) do pairing
             pairing[player_i]
         end
@@ -293,8 +293,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 p in Flux.params(solver.trajectory_parameter_generators...)
             )
         end
-        info = (; loss, ∇L_norm, trajectory_references)
-        LiftedTrajectoryStrategy(; player_i, trajectory_candidates, weights, info, solver.rng)
+        LiftedTrajectoryStrategy(;
+            player_i,
+            trajectory_candidates,
+            weights,
+            info = (; loss, ∇L_norm, trajectory_references),
+            solver.rng,
+        )
     end
 
     JointStrategy(γs)
