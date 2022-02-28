@@ -21,7 +21,7 @@ end
 Convenience constructor to drive a suitable solver directly form a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ProductDynamics,<:AbstractTrajectoryGameCost},
+    game::TrajectoryGame{<:ProductDynamics},
     planning_horizon;
     rng = Random.MersenneTwister(1),
     initial_parameters = (:random, :random),
@@ -206,7 +206,7 @@ end
 
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
-    game::TrajectoryGame{<:ProductDynamics,<:AbstractTrajectoryGameCost},
+    game::TrajectoryGame{<:ProductDynamics},
     initial_state;
     min_action_probability = 0.05,
     enable_caching_per_player = (false, false),
