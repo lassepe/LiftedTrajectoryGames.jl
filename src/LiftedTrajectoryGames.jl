@@ -1,3 +1,5 @@
+__precompile__(false)
+
 module LiftedTrajectoryGames
 
 using FiniteGames: FiniteGames
