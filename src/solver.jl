@@ -8,7 +8,7 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
     "A random number generator to generate non-deterministic strategies."
     rng::TR
     "How much affect the dual regularization has on the costs"
-    dual_regularization_weights::TD
+    dual_regularization_weights::TD = (1e-4, 1e-4)
     "The solver for the high-level finite game"
     finite_game_solver::TF = FiniteGames.LemkeHowsonGameSolver()
     "A flag that can be set to enable/disable learning"
@@ -28,7 +28,6 @@ function LiftedTrajectoryGameSolver(
     n_actions = (2, 2),
     reference_generator_constructors = (NNActionGenerator, NNActionGenerator),
     learning_rates = (0.05, 0.05),
-    dual_regularization_weights = (1e-4, 1e-4),
     trajectory_parameterizations = (
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
@@ -80,7 +79,6 @@ function LiftedTrajectoryGameSolver(
         trajectory_generators,
         planning_horizon,
         rng,
-        dual_regularization_weights,
         kwargs...,
     )
 end
