@@ -1,4 +1,4 @@
-Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
+struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::TA
     "A acollection of trajectory generators, one for each player in the game"
@@ -8,13 +8,13 @@ Base.@kwdef struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
     "A random number generator to generate non-deterministic strategies."
     rng::TR
     "How much affect the dual regularization has on the costs"
-    dual_regularization_weights::TD = (1e-4, 1e-4)
+    dual_regularization_weights::TD
     "The solver for the high-level finite game"
-    finite_game_solver::TF = FiniteGames.LemkeHowsonGameSolver()
+    finite_game_solver::TF
     "A flag that can be set to enable/disable learning"
-    enable_learning::TL = (true, true)
+    enable_learning::TL
     "A vector of cached trajectories for each player"
-    trajectory_caches::TC = (nothing, nothing)
+    trajectory_caches::TC
 end
 
 """
@@ -33,7 +33,10 @@ function LiftedTrajectoryGameSolver(
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
     ),
     trajectory_solver = QPSolver(),
-    kwargs...,
+    dual_regularization_weights = (1e-4, 1e-4),
+    finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
+    enable_learning = (true, true),
+    trajectory_caches = (nothing, nothing),
 )
     num_players(game) == 2 ||
         error("Currently, only 2-player problems are supported by this solver.")
@@ -74,12 +77,15 @@ function LiftedTrajectoryGameSolver(
         )
     end
 
-    LiftedTrajectoryGameSolver(;
+    LiftedTrajectoryGameSolver(
         trajectory_parameter_generators,
         trajectory_generators,
         planning_horizon,
         rng,
-        kwargs...,
+        dual_regularization_weights,
+        finite_game_solver,
+        enable_learning,
+        trajectory_caches,
     )
 end
 
