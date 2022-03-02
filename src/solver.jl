@@ -130,10 +130,11 @@ function forward_pass(;
     candidates_per_player =
         generate_trajectory_candidates(solver, game, initial_state, enable_caching_per_player)
 
-    trajectory_pairings =
-        Iterators.product(eachindex(candidates_per_player[1]), eachindex(candidates_per_player[2]))
+    trajectory_pairings = Zygote.ignore() do
+        Iterators.product(eachindex(candidates_per_player[1]), eachindex(candidates_per_player[2])) |> collect
+    end
     # f
-    costs_per_trajectory_pairing = ThreadsX.map(trajectory_pairings) do (i1, i2)
+    cost_tensor = ThreadsX.map(trajectory_pairings) do (i1, i2)
         t1 = candidates_per_player[1][i1].trajectory
         t2 = candidates_per_player[2][i2].trajectory
 
@@ -148,7 +149,7 @@ function forward_pass(;
 
     # transpose matrix of tuples to tuple of matrices
     costs_per_player = map((1, 2)) do player_i
-        map(costs_per_trajectory_pairing) do pairing
+        map(cost_tensor) do pairing
             pairing[player_i]
         end
     end
