@@ -33,6 +33,7 @@ using ParameterSchedulers: ParameterSchedulers
 using ThreadsX: ThreadsX
 using ThreadsXChainRules: ThreadsXChainRules
 
+include("execution_policy.jl")
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")

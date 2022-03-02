@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
+struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD,TX}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::TA
     "A acollection of trajectory generators, one for each player in the game"
@@ -15,6 +15,9 @@ struct LiftedTrajectoryGameSolver{TA,TT,TH,TF,TR,TL,TC,TD}
     enable_learning::TL
     "A vector of cached trajectories for each player"
     trajectory_caches::TC
+    "An AbstractExecutionPolicy that determines whether the solve is computed in parallel or
+    sequentially."
+    execution_policy::TX
 end
 
 """
@@ -37,6 +40,7 @@ function LiftedTrajectoryGameSolver(
     finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
     enable_learning = (true, true),
     trajectory_caches = (nothing, nothing),
+    execution_policy = SequentialExecutionPolicy(),
 )
     num_players(game) == 2 ||
         error("Currently, only 2-player problems are supported by this solver.")
@@ -86,6 +90,7 @@ function LiftedTrajectoryGameSolver(
         finite_game_solver,
         enable_learning,
         trajectory_caches,
+        execution_policy
     )
 end
 
@@ -97,10 +102,9 @@ function huber(x; δ = 1)
     end
 end
 
-function generate_trajectory_candidates(solver, game, initial_state, enable_caching_per_player)
-    player_indices = collect(1:num_players(game))
+function generate_trajectory_candidates(solver, initial_state, enable_caching_per_player;)
     state_per_player = blocks(initial_state)
-    candidates_per_player = ThreadsX.map(player_indices) do ii
+    candidates_per_player = map_threadable((1, 2), solver.execution_policy) do ii
         cache = solver.trajectory_caches[ii]
         if !isnothing(cache) && enable_caching_per_player[ii]
             cache
@@ -110,10 +114,11 @@ function generate_trajectory_candidates(solver, game, initial_state, enable_cach
             # TRAJ_i
             trajectory_generator = solver.trajectory_generators[ii]
             substate = state_per_player[ii]
-            ThreadsX.map(
+            map_threadable(
                 reference ->
                     (; trajectory = trajectory_generator(substate, reference), reference),
                 references,
+                solver.execution_policy,
             )
         end
     end
@@ -128,13 +133,13 @@ function forward_pass(;
     enable_caching_per_player,
 )
     candidates_per_player =
-        generate_trajectory_candidates(solver, game, initial_state, enable_caching_per_player)
+        generate_trajectory_candidates(solver, initial_state, enable_caching_per_player;)
 
     trajectory_pairings = Zygote.ignore() do
         Iterators.product(eachindex(candidates_per_player[1]), eachindex(candidates_per_player[2])) |> collect
     end
     # f
-    cost_tensor = ThreadsX.map(trajectory_pairings) do (i1, i2)
+    cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do (i1, i2)
         t1 = candidates_per_player[1][i1].trajectory
         t2 = candidates_per_player[2][i2].trajectory
 
