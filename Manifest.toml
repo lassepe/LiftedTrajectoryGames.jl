@@ -1407,6 +1407,12 @@ git-tree-sha1 = "6dad289fe5fc1d8e907fa855135f85fb03c8fa7a"
 uuid = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 version = "0.1.9"
 
+[[deps.ThreadsXChainRules]]
+deps = ["ChainRulesCore", "ThreadsX"]
+path = "../ThreadsXChainRules"
+uuid = "5107cb42-c55a-4842-8de6-96a2e4bae273"
+version = "0.1.0"
+
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
 git-tree-sha1 = "991d34bbff0d9125d93ba15887d6594e8e84b305"

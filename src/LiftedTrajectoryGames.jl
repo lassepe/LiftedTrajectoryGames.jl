@@ -30,6 +30,8 @@ using Random: Random
 using Zygote: Zygote
 using LinearAlgebra: norm
 using ParameterSchedulers: ParameterSchedulers
+using ThreadsX: ThreadsX
+using ThreadsXChainRules: ThreadsXChainRules
 
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")

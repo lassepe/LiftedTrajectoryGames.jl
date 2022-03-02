@@ -97,25 +97,24 @@ function huber(x; δ = 1)
     end
 end
 
-function generate_trajectory_candidates(
-    initial_state,
-    references_per_player,
-    trajectory_generators,
-    enable_caching_per_player,
-    trajectory_caches,
-)
+function generate_trajectory_candidates(solver, game, initial_state, enable_caching_per_player)
+    player_indices = collect(1:num_players(game))
     state_per_player = blocks(initial_state)
-    candidates_per_player = map(
-        state_per_player,
-        references_per_player,
-        trajectory_generators,
-        enable_caching_per_player,
-        trajectory_caches,
-    ) do state, references, trajectory_generator, enable_caching, cache
-        if enable_caching && !isnothing(cache)
+    candidates_per_player = ThreadsX.map(player_indices) do ii
+        cache = solver.trajectory_caches[ii]
+        if !isnothing(cache) && enable_caching_per_player[ii]
             cache
         else
-            [trajectory_generator(state, reference) for reference in references]
+            # π_θi
+            references = solver.trajectory_parameter_generators[ii](initial_state)
+            # TRAJ_i
+            trajectory_generator = solver.trajectory_generators[ii]
+            substate = state_per_player[ii]
+            ThreadsX.map(
+                reference ->
+                    (; trajectory = trajectory_generator(substate, reference), reference),
+                references,
+            )
         end
     end
     candidates_per_player
@@ -128,26 +127,15 @@ function forward_pass(;
     min_action_probability,
     enable_caching_per_player,
 )
-    # π_θ
-    trajectory_references_per_player =
-        map(generator -> generator(initial_state), solver.trajectory_parameter_generators)
-    # TRAJ
-    trajectory_candidates_per_player = generate_trajectory_candidates(
-        initial_state,
-        trajectory_references_per_player,
-        solver.trajectory_generators,
-        enable_caching_per_player,
-        solver.trajectory_caches,
-    )
+    candidates_per_player =
+        generate_trajectory_candidates(solver, game, initial_state, enable_caching_per_player)
 
-    trajectory_pairings = Iterators.product(
-        eachindex(trajectory_candidates_per_player[1]),
-        eachindex(trajectory_candidates_per_player[2]),
-    )
+    trajectory_pairings =
+        Iterators.product(eachindex(candidates_per_player[1]), eachindex(candidates_per_player[2]))
     # f
-    costs_per_trajectory_pairing = map(trajectory_pairings) do (i1, i2)
-        t1 = trajectory_candidates_per_player[1][i1]
-        t2 = trajectory_candidates_per_player[2][i2]
+    costs_per_trajectory_pairing = ThreadsX.map(trajectory_pairings) do (i1, i2)
+        t1 = candidates_per_player[1][i1].trajectory
+        t2 = candidates_per_player[2][i2].trajectory
 
         xs = map(t1.xs, t2.xs) do x1, x2
             mortar([x1, x2])
@@ -185,8 +173,8 @@ function forward_pass(;
     )
     dual_regularizations =
         (
-            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[1]),
-            sum(sum(huber.(t.λs)) for t in trajectory_candidates_per_player[2]),
+            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[1]),
+            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[2]),
         ) ./ solver.planning_horizon
 
     loss_per_player = (
@@ -194,12 +182,7 @@ function forward_pass(;
         game_value_per_player.V2 + solver.dual_regularization_weights[2] * dual_regularizations[2],
     )
 
-    info = (;
-        game_value_per_player,
-        mixing_strategies,
-        trajectory_candidates_per_player,
-        trajectory_references_per_player,
-    )
+    info = (; game_value_per_player, mixing_strategies, candidates_per_player)
 
     (; loss_per_player, info)
 end
@@ -252,9 +235,9 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     # Store computed trajectories in caches if caching is enabled
     if !(eltype(solver.trajectory_caches) <: Nothing)
-        for ii in eachindex(info.trajectory_candidates_per_player)
+        for ii in eachindex(info.candidates_per_player)
             if enable_caching_per_player[ii]
-                solver.trajectory_caches[ii] = info.trajectory_candidates_per_player[ii]
+                solver.trajectory_caches[ii] = info.candidates_per_player[ii]
             end
         end
     end
@@ -285,10 +268,9 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         Iterators.countfrom(),
         info.mixing_strategies,
         loss_per_player,
-        info.trajectory_candidates_per_player,
-        info.trajectory_references_per_player,
+        info.candidates_per_player,
         ∇L_per_player,
-    ) do player_i, weights, loss, trajectory_candidates, trajectory_references, ∇L
+    ) do player_i, weights, loss, candidates, ∇L
         ∇L_norm = if isnothing(∇L)
             0.0
         else
@@ -299,9 +281,9 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
         LiftedTrajectoryStrategy(;
             player_i,
-            trajectory_candidates,
+            trajectory_candidates = [c.trajectory for c in candidates],
             weights,
-            info = (; loss, ∇L_norm, trajectory_references),
+            info = (; loss, ∇L_norm, trajectory_references = [c.reference for c in candidates]),
             solver.rng,
         )
     end
