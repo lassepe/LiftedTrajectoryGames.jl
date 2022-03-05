@@ -90,7 +90,7 @@ function LiftedTrajectoryGameSolver(
         finite_game_solver,
         enable_learning,
         trajectory_caches,
-        execution_policy
+        execution_policy,
     )
 end
 
@@ -193,6 +193,26 @@ function forward_pass(;
     (; loss_per_player, info)
 end
 
+function cost_gradients(back, enable_learning, ::GeneralSumCostStructure)
+    if enable_learning[1]
+        ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing)) |> copy
+    else
+        ∇L_1 = nothing
+    end
+    if enable_learning[2]
+        ∇L_2 = back((; loss_per_player = (nothing, 1), info = nothing))
+    else
+        ∇L_2 = nothing
+    end
+
+    (; ∇L_1, ∇L_2)
+end
+
+function cost_gradients(back, enable_learning, ::ZeroSumCostStructure)
+    ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing))
+    (; ∇L_1, ∇L_2 = -1 .* ∇L_1)
+end
+
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ProductDynamics},
@@ -213,16 +233,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             ),
             Flux.params(solver.trajectory_parameter_generators...),
         )
-        if solver.enable_learning[1]
-            ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing)) |> copy
-        else
-            ∇L_1 = nothing
-        end
-        if solver.enable_learning[2]
-            ∇L_2 = back((; loss_per_player = (nothing, 1), info = nothing))
-        else
-            ∇L_2 = nothing
-        end
+        (; ∇L_1, ∇L_2) = cost_gradients(back, solver.enable_learning, game.cost.structure)
     else
         forward_pass_result = forward_pass(;
             solver,
