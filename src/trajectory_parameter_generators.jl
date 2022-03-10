@@ -17,6 +17,7 @@ function NNActionGenerator(;
     initial_parameters,
     hidden_dim = 100,
     n_hidden_layers = 2,
+    output_activation = tanh
 )
     if initial_parameters === :random
         init = (in, out) -> Flux.glorot_uniform(rng, in, out)
@@ -29,7 +30,7 @@ function NNActionGenerator(;
     model = Chain(
         Dense(state_dim, hidden_dim, tanh; init),
         (Dense(hidden_dim, hidden_dim, tanh; init) for _ in 1:(n_hidden_layers - 1))...,
-        Dense(hidden_dim, n_params * n_actions, tanh; init),
+        Dense(hidden_dim, n_params * n_actions, output_activation; init),
         x -> params_abs_max .* x,
     )
 
