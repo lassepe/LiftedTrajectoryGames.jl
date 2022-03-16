@@ -43,6 +43,7 @@ function LiftedTrajectoryGameSolver(
     finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
     enable_learning = (true, true),
     trajectory_caches = (nothing, nothing),
+    gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
 )
     num_players(game) == 2 ||
@@ -81,6 +82,7 @@ function LiftedTrajectoryGameSolver(
             learning_rate,
             rng,
             initial_parameters = initial_player_parameters,
+            gradient_clipping_threshold,
         )
     end
 

@@ -1,9 +1,10 @@
 #== NNActionGenerator ==#
 
-struct NNActionGenerator{M,O}
+struct NNActionGenerator{M,O,G}
     model::M
     optimizer::O
     n_actions::Int
+    gradient_clipping_threshold::G
 end
 @functor NNActionGenerator (model,)
 
@@ -17,7 +18,8 @@ function NNActionGenerator(;
     initial_parameters,
     hidden_dim = 100,
     n_hidden_layers = 2,
-    output_activation = tanh
+    output_activation = tanh,
+    gradient_clipping_threshold = nothing,
 )
     if initial_parameters === :random
         init = (in, out) -> Flux.glorot_uniform(rng, in, out)
@@ -33,10 +35,8 @@ function NNActionGenerator(;
         Dense(hidden_dim, n_params * n_actions, output_activation; init),
         x -> params_abs_max .* x,
     )
-
     optimizer = Optimise.Descent(learning_rate)
-
-    NNActionGenerator(model, optimizer, n_actions)
+    NNActionGenerator(model, optimizer, n_actions, gradient_clipping_threshold)
 end
 
 function (g::NNActionGenerator)(states)
@@ -46,6 +46,19 @@ function (g::NNActionGenerator)(states)
 end
 
 function preprocess_gradients!(∇, g::NNActionGenerator, θ; kwargs...)
+    if !isnothing(g.gradient_clipping_threshold)
+        v = maximum(θ) do p
+            maximum(g -> abs(g), ∇[p])
+        end
+
+        if v > g.gradient_clipping_threshold
+            @info "Clipping, largest value was $v"
+            for p in θ
+                ∇[p] .*= g.gradient_clipping_threshold / v
+            end
+        end
+    end
+
     ∇
 end
 
