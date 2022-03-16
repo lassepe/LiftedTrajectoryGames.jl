@@ -52,7 +52,6 @@ function preprocess_gradients!(∇, g::NNActionGenerator, θ; kwargs...)
         end
 
         if v > g.gradient_clipping_threshold
-            @info "Clipping, largest value was $v"
             for p in θ
                 ∇[p] .*= g.gradient_clipping_threshold / v
             end
