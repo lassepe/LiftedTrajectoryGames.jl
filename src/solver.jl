@@ -181,7 +181,7 @@ function forward_pass(;
                     # the constraint is already satsified, no penalty
                     zero(g)
                 else
-                    -g * 10
+                    -g * 100
                 end
             end
         end
