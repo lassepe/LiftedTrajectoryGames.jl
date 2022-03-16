@@ -2,9 +2,9 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
-    trajectory_generators::T3
-    "A dual generator for each players shared constraints"
-    dual_generators::T2
+    trajectory_generators::T2
+    "TODO: define the exact meaning of this"
+    coupling_constraints_handler::T3
     "The number of time steps to plan into the future."
     planning_horizon::T4
     "A random number generator to generate non-deterministic strategies."
@@ -37,7 +37,7 @@ function LiftedTrajectoryGameSolver(
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
     ),
-    dual_generators = nothing,
+    coupling_constraints_handler = nothing,
     trajectory_solver = QPSolver(),
     dual_regularization_weights = (1e-4, 1e-4),
     finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
@@ -87,7 +87,7 @@ function LiftedTrajectoryGameSolver(
     LiftedTrajectoryGameSolver(
         trajectory_parameter_generators,
         trajectory_generators,
-        dual_generators,
+        coupling_constraints_handler,
         planning_horizon,
         rng,
         dual_regularization_weights,
@@ -172,16 +172,15 @@ function forward_pass(;
             mortar([u1, u2])
         end
 
-        gs = mapreduce(vcat, game.shared_constraints) do con
-            con(t1, t2)
-        end
-
-        penality = sum(gs) do g
-            if g >= 0
-                # the constraint is already satsified, no penalty
-                zero(g)
-            else
-                -g * 10
+        penality = let
+            gs = game.coupling_constraints(xs, us)
+            sum(gs) do g
+                if g >= 0
+                    # the constraint is already satsified, no penalty
+                    zero(g)
+                else
+                    -g * 10
+                end
             end
         end
 
@@ -245,7 +244,7 @@ function cost_gradients(back, solver, ::GeneralSumCostStructure)
 end
 
 function cost_gradients(back, solver, ::ZeroSumCostStructure)
-    isnothing(solver.dual_generators) || error("Not implemented")
+    isnothing(solver.coupling_constraints_handler) || error("Not implemented")
     ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing))
     (; ∇L_1, ∇L_2 = -1 .* ∇L_1)
 end
@@ -260,8 +259,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     scale_action_gradients = true,
 )
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        trainable_params = if !isnothing(solver.dual_generators)
-            Flux.params(solver.trajectory_parameter_generators..., solver.dual_generators...)
+        trainable_params = if !isnothing(solver.coupling_constraints_handler)
+            Flux.params(solver.trajectory_parameter_generators..., solver.coupling_constraints_handler)
         else
             Flux.params(solver.trajectory_parameter_generators...)
         end
@@ -303,9 +302,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     # Update θ_i if learning is enabled for player i
     if !isnothing(solver.enable_learning)
-        for (parameter_generator, dual_generator, weights, enable_player_learning, ∇L) in zip(
+        for (parameter_generator, weights, enable_player_learning, ∇L) in zip(
             solver.trajectory_parameter_generators,
-            @something(solver.dual_generators, [nothing, nothing]),
             info.mixing_strategies,
             solver.enable_learning,
             ∇L_per_player,
@@ -322,10 +320,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 action_gradient_scaling,
             )
 
-            if !isnothing(dual_generator)
-                # TODO: have a cleaner update that does not do the scaling business
-                update_parameters!(dual_generator, ∇L; solver.rng, action_gradient_scaling = 1)
-            end
+            # TODO: re-introduce shared constraint handler parameter update here
         end
     end
 
