@@ -148,23 +148,6 @@ function forward_pass(;
         Iterators.product(eachindex(candidates_per_player[1]), eachindex(candidates_per_player[2])) |> collect
     end
 
-    #    if !isnothing(solver.dual_generators)
-    #        ## primal dual stuff
-    #        shared_constraints = mapreduce(vcat, trajectory_pairings) do (ii, jj)
-    #            τ_1 = candidates_per_player[1][ii].trajectory
-    #            τ_2 = candidates_per_player[2][jj].trajectory
-    #        end
-    #
-    #        # TODO: the call to `only` shoud be elminated by having a more appropriate output format for
-    #        # the dual generator
-    #        duals_per_player = [solver.dual_generators[ii](initial_state) |> only for ii in (1, 2)]
-    #
-    #        constraint_penalty_per_player =
-    #            [-sum(duals_per_player[ii] .* shared_constraints) for ii in (1, 2)]
-    #    else
-    #        constraint_penalty_per_player = [0 for _ in (1, 2)]
-    #    end
-
     # f
     # Evaluate the functions on all joint trajectories in the cost tensor
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do (i1, i2)
@@ -313,8 +296,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 solver.rng,
                 action_gradient_scaling,
             )
-
-            # TODO: re-introduce shared constraint handler parameter update here
         end
     end
 
