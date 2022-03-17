@@ -76,6 +76,8 @@ function OnlineOptimizationActionGenerator(;
     learning_rate,
     rng,
     initial_parameters = nothing,
+    # this solver does not support gradient clipping for now
+    gradient_clipping_threshold::Nothing = nothing,
 )
     params = if isnothing(initial_parameters)
         (rand(rng, n_params, n_actions) .- 0.5) .* (2params_abs_max)
