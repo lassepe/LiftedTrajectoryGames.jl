@@ -3,7 +3,10 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
     trajectory_generators::T2
-    "TODO: define the exact meaning of this"
+    "A callable `(game, xs, us) -> cs` which maps the joint state-input trajectory `(xs, us)` to a
+    tuple of scalar costs `cs` for a given `game`. In the simplest case, this may just forward to
+    the `game.cost`. More generally, however, this function will add penalties to enforce
+    constraints."
     coupling_constraints_handler::T3
     "The number of time steps to plan into the future."
     planning_horizon::T4
@@ -37,7 +40,7 @@ function LiftedTrajectoryGameSolver(
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
         InputReferenceParameterization(; α = 3, params_abs_max = 10),
     ),
-    coupling_constraints_handler = nothing,
+    coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     trajectory_solver = QPSolver(),
     dual_regularization_weights = (1e-4, 1e-4),
     finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
@@ -163,6 +166,7 @@ function forward_pass(;
     #    end
 
     # f
+    # Evaluate the functions on all joint trajectories in the cost tensor
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do (i1, i2)
         t1 = candidates_per_player[1][i1].trajectory
         t2 = candidates_per_player[2][i2].trajectory
@@ -174,19 +178,7 @@ function forward_pass(;
             mortar([u1, u2])
         end
 
-        penality = let
-            gs = game.coupling_constraints(xs, us)
-            sum(gs) do g
-                if g >= 0
-                    # the constraint is already satsified, no penalty
-                    zero(g)
-                else
-                    -g * 100
-                end
-            end
-        end
-
-        game.cost(xs, us) .+ penality
+        solver.coupling_constraints_handler(game, xs, us)
     end
 
     # transpose matrix of tuples to tuple of matrices

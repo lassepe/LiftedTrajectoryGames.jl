@@ -39,6 +39,7 @@ include("execution_policy.jl")
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")
+include("coupling_constraint_handlers.jl")
 include("solver.jl")
 include("visualization.jl")
 
