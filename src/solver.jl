@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -25,6 +25,8 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     execution_policy::T10
     "TODO: refine docstring; A value network to predict the state-value for both (?) players"
     state_value_predictor::T11
+    "TODO: refine docstring/interface"
+    replay_buffer::T12
 end
 
 """
@@ -51,6 +53,7 @@ function LiftedTrajectoryGameSolver(
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
+    replay_buffer = nothing,
 )
     num_players(game) == 2 ||
         error("Currently, only 2-player problems are supported by this solver.")
@@ -104,6 +107,7 @@ function LiftedTrajectoryGameSolver(
         trajectory_caches,
         execution_policy,
         state_value_predictor,
+        replay_buffer,
     )
 end
 
@@ -167,15 +171,19 @@ function forward_pass(;
 
         trajectory_cost = solver.coupling_constraints_handler(game, xs, us)
         if isnothing(solver.state_value_predictor)
-            cost_to_go = 0.0
+            cost_to_go = 10 * norm(t1.xs[end])
         else
             # TODO: in the zero-sum case we could have a specialized state_value_predictor that
             # exploits the symmetry in the state value.
-            cost_to_go = state_value_predictor(xs[end])
+            cost_to_go = solver.state_value_predictor(xs[end])
         end
 
-        TODO_DISCOUNT_FACTOR = 0.9
-        trajectory_cost .+ TODO_DISCOUNT_FACTOR * cost_to_go
+        # TODO, for debugging, cost-to-go is disabled for the evader since it shouldn't matter too
+        # much for them; they can resolve their strategy even in open-loop pretty well
+        TODO_discount_factor = 0.95
+        c1, c2 = trajectory_cost
+        c1 + TODO_discount_factor^length(xs) * cost_to_go[1]
+        cost_to_go[1], c2
     end
 
     # transpose matrix of tuples to tuple of matrices
@@ -250,7 +258,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     scale_action_gradients = true,
 )
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        trainable_params = Flux.params(solver.trajectory_parameter_generators...)
+        trainable_parameters = Flux.params(solver.trajectory_parameter_generators...)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
@@ -259,7 +267,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 min_action_probability,
                 enable_caching_per_player,
             ),
-            trainable_params,
+            trainable_parameters,
         )
         (; ∇L_1, ∇L_2) = cost_gradients(back, solver, game.cost.structure)
     else
@@ -275,6 +283,14 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     ∇L_per_player = (∇L_1, ∇L_2)
+
+    for ∇ in ∇L_per_player
+        for (i, pp) in enumerate(trainable_parameters)
+            dpp = ∇[pp]
+            @infiltrate any(x -> isnan(x) || isinf(x), pp)
+            @infiltrate any(x -> isnan(x) || isinf(x), dpp)
+        end
+    end
 
     (; loss_per_player, info) = forward_pass_result
 
@@ -306,6 +322,31 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 solver.rng,
                 action_gradient_scaling,
             )
+        end
+    end
+
+    # fill repaly buffer
+    # TODO improve momory allocation stuff
+    if !isnothing(solver.state_value_predictor) &&
+       !isnothing(solver.enable_learning) &&
+       any(solver.enable_learning)
+        TODO_state_value_batch_size = 10
+        TODO_n_value_epochs = 5
+
+        # TODO: technically, we would want to do this on shorter game segements that match the
+        # `turn_length` but it's not yet what that should be
+        push!(
+            solver.replay_buffer,
+            (; value_target_per_player = collect(loss_per_player), state = initial_state),
+        )
+
+        if length(solver.replay_buffer) >= TODO_state_value_batch_size
+            fit_value_predictor!(
+                solver.state_value_predictor,
+                solver.replay_buffer,
+                TODO_n_value_epochs,
+            )
+            empty!(solver.replay_buffer)
         end
     end
 
