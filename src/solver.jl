@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -23,6 +23,8 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "An AbstractExecutionPolicy that determines whether the solve is computed in parallel or
     sequentially."
     execution_policy::T10
+    "TODO: refine docstring; A value network to predict the state-value for both (?) players"
+    state_value_predictor::T11
 end
 
 """
@@ -48,6 +50,7 @@ function LiftedTrajectoryGameSolver(
     trajectory_caches = (nothing, nothing),
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
+    state_value_predictor = nothing,
 )
     num_players(game) == 2 ||
         error("Currently, only 2-player problems are supported by this solver.")
@@ -100,6 +103,7 @@ function LiftedTrajectoryGameSolver(
         enable_learning,
         trajectory_caches,
         execution_policy,
+        state_value_predictor,
     )
 end
 
@@ -161,7 +165,17 @@ function forward_pass(;
             mortar([u1, u2])
         end
 
-        solver.coupling_constraints_handler(game, xs, us)
+        trajectory_cost = solver.coupling_constraints_handler(game, xs, us)
+        if isnothing(solver.state_value_predictor)
+            cost_to_go = 0.0
+        else
+            # TODO: in the zero-sum case we could have a specialized state_value_predictor that
+            # exploits the symmetry in the state value.
+            cost_to_go = state_value_predictor(xs[end])
+        end
+
+        TODO_DISCOUNT_FACTOR = 0.9
+        trajectory_cost .+ TODO_DISCOUNT_FACTOR * cost_to_go
     end
 
     # transpose matrix of tuples to tuple of matrices
