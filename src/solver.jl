@@ -169,13 +169,18 @@ function forward_pass(;
             mortar([u1, u2])
         end
 
-        trajectory_cost = solver.coupling_constraints_handler(game, xs, us)
+        TODO_turn_length = 10
+        trajectory_cost = solver.coupling_constraints_handler(
+            game,
+            xs[1:TODO_turn_length],
+            us[1:TODO_turn_length],
+        )
         if isnothing(solver.state_value_predictor)
             cost_to_go = 0#10 * norm(t1.xs[end])
         else
             # TODO: in the zero-sum case we could have a specialized state_value_predictor that
             # exploits the symmetry in the state value.
-            cost_to_go = solver.state_value_predictor(xs[end])
+            cost_to_go = solver.state_value_predictor(xs[TODO_turn_length])
         end
 
         # TODO, for debugging, cost-to-go is disabled for the evader since it shouldn't matter too
@@ -216,8 +221,10 @@ function forward_pass(;
         ) ./ solver.planning_horizon
 
     loss_per_player = (
-        game_value_per_player.V1 + solver.dual_regularization_weights[1] * dual_regularizations[1],
-        game_value_per_player.V2 + solver.dual_regularization_weights[2] * dual_regularizations[2],
+        game_value_per_player.V1 +
+        10000 * solver.dual_regularization_weights[1] * dual_regularizations[1],
+        game_value_per_player.V2 +
+        10000 * solver.dual_regularization_weights[2] * dual_regularizations[2],
     )
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
@@ -328,11 +335,9 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     if !isnothing(solver.state_value_predictor) &&
        !isnothing(solver.enable_learning) &&
        any(solver.enable_learning)
-        TODO_state_value_batch_size = 25
+        TODO_state_value_batch_size = 50
         TODO_n_value_epochs = 1
 
-        # TODO: technically, we would want to do this on shorter game segements that match the
-        # `turn_length` but it's not yet what that should be
         push!(
             solver.replay_buffer,
             (; value_target_per_player = collect(loss_per_player), state = initial_state),
