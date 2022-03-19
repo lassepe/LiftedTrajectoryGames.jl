@@ -45,15 +45,15 @@ function (g::NNActionGenerator)(states)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
-function preprocess_gradients!(∇, g::NNActionGenerator, θ; kwargs...)
-    if !isnothing(g.gradient_clipping_threshold)
+function preprocess_gradients!(∇, reference_generator::NNActionGenerator, θ; kwargs...)
+    if !isnothing(reference_generator.gradient_clipping_threshold)
         v = maximum(θ) do p
             maximum(g -> abs(g), ∇[p])
         end
 
-        if v > g.gradient_clipping_threshold
+        if v > reference_generator.gradient_clipping_threshold
             for p in θ
-                ∇[p] .*= g.gradient_clipping_threshold / v
+                ∇[p] .*= reference_generator.gradient_clipping_threshold / v
             end
         end
     end

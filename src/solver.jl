@@ -236,11 +236,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     scale_action_gradients = true,
 )
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        trainable_params = if !isnothing(solver.coupling_constraints_handler)
-            Flux.params(solver.trajectory_parameter_generators..., solver.coupling_constraints_handler)
-        else
-            Flux.params(solver.trajectory_parameter_generators...)
-        end
+        trainable_params = Flux.params(solver.trajectory_parameter_generators...)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
