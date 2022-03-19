@@ -171,7 +171,7 @@ function forward_pass(;
 
         trajectory_cost = solver.coupling_constraints_handler(game, xs, us)
         if isnothing(solver.state_value_predictor)
-            cost_to_go = 10 * norm(t1.xs[end])
+            cost_to_go = 0#10 * norm(t1.xs[end])
         else
             # TODO: in the zero-sum case we could have a specialized state_value_predictor that
             # exploits the symmetry in the state value.
@@ -180,10 +180,8 @@ function forward_pass(;
 
         # TODO, for debugging, cost-to-go is disabled for the evader since it shouldn't matter too
         # much for them; they can resolve their strategy even in open-loop pretty well
-        TODO_discount_factor = 0.95
-        c1, c2 = trajectory_cost
-        c1 + TODO_discount_factor^length(xs) * cost_to_go[1]
-        cost_to_go[1], c2
+        TODO_discount_factor = 0.99
+        trajectory_cost .+ TODO_discount_factor^length(xs) * cost_to_go
     end
 
     # transpose matrix of tuples to tuple of matrices
@@ -330,8 +328,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     if !isnothing(solver.state_value_predictor) &&
        !isnothing(solver.enable_learning) &&
        any(solver.enable_learning)
-        TODO_state_value_batch_size = 10
-        TODO_n_value_epochs = 5
+        TODO_state_value_batch_size = 25
+        TODO_n_value_epochs = 1
 
         # TODO: technically, we would want to do this on shorter game segements that match the
         # `turn_length` but it's not yet what that should be
@@ -341,6 +339,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         )
 
         if length(solver.replay_buffer) >= TODO_state_value_batch_size
+            println("fitting")
             fit_value_predictor!(
                 solver.state_value_predictor,
                 solver.replay_buffer,

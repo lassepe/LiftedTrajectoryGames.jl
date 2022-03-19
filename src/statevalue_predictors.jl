@@ -5,12 +5,20 @@ end
 
 @functor NNValuePredictor (model,)
 
-function NNValuePredictor(; game, learning_rate, rng, n_hidden_layers = 4, hidden_dim = 100)
+function NNValuePredictor(;
+    game,
+    learning_rate,
+    rng,
+    output_scaling = 1,
+    n_hidden_layers = 4,
+    hidden_dim = 100,
+)
     init(in, out) = Flux.glorot_uniform(rng, in, out)
     model = Chain(
-        Dense(state_dim(game.dynamics), hidden_dim, tanh; init),
-        (Dense(hidden_dim, hidden_dim, tanh; init) for _ in 1:(n_hidden_layers - 1))...,
+        Dense(state_dim(game.dynamics), hidden_dim, sin; init),
+        (Dense(hidden_dim, hidden_dim, sin; init) for _ in 1:(n_hidden_layers - 1))...,
         Dense(hidden_dim, num_players(game); init),
+        x -> output_scaling * x,
     )
 
     optimizer = Optimise.Descent(learning_rate)
