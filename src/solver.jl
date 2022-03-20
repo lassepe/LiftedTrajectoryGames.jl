@@ -340,7 +340,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
         push!(
             solver.replay_buffer,
-            (; value_target_per_player = collect(loss_per_player), state = initial_state),
+            (;
+                value_target_per_player = [
+                    info.game_value_per_player.V1,
+                    info.game_value_per_player.V2,
+                ],
+                state = initial_state,
+            ),
         )
 
         if length(solver.replay_buffer) >= TODO_state_value_batch_size
