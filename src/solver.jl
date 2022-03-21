@@ -186,7 +186,7 @@ function forward_pass(;
         # TODO, for debugging, cost-to-go is disabled for the evader since it shouldn't matter too
         # much for them; they can resolve their strategy even in open-loop pretty well
         TODO_discount_factor = 0.99
-        trajectory_cost .+ TODO_discount_factor^length(xs) * cost_to_go
+        trajectory_cost .+ TODO_discount_factor^TODO_turn_length * cost_to_go
     end
 
     # transpose matrix of tuples to tuple of matrices

@@ -1,3 +1,12 @@
+# custom split layer
+struct Split{T}
+    paths::T
+end
+
+Split(paths...) = Split(paths)
+@functor Split
+(m::Split)(x::AbstractArray) = map(f -> f(x), m.paths)
+
 struct NNValuePredictor{M,O}
     model::M
     optimizer::O
@@ -14,20 +23,29 @@ function NNValuePredictor(;
     hidden_dim = 100,
 )
     init(in, out) = Flux.glorot_uniform(rng, in, out)
-    model = Chain(
-        Dense(state_dim(game.dynamics), hidden_dim, sin; init),
-        (Dense(hidden_dim, hidden_dim, sin; init) for _ in 1:(n_hidden_layers - 1))...,
-        Dense(hidden_dim, num_players(game); init),
-        x -> output_scaling * x,
-    )
+
+    # TODO: use Flux.Parallel for a decoupled architecture here
+    model = let
+        legs = map(1:num_players(game)) do ii
+            Chain(
+                Dense(state_dim(game.dynamics), hidden_dim, sin; init),
+                (Dense(hidden_dim, hidden_dim, sin; init) for _ in 1:(n_hidden_layers - 1))...,
+                Dense(hidden_dim, 1; init),
+                x -> output_scaling * x,
+                only,
+            )
+        end
+        Split(legs)
+    end
 
     optimizer = Optimise.Descent(learning_rate)
 
     NNValuePredictor(model, optimizer)
 end
 
-function (m::NNValuePredictor)(state)
-    v = m.model(reduce(vcat, state))
+function (p::NNValuePredictor)(state)
+    joint_state = reduce(vcat, state)
+    v = p.model(joint_state)
     Zygote.ignore() do
         @infiltrate any(x -> isnan(x) || isinf(x), v)
     end
