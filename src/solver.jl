@@ -222,9 +222,9 @@ function forward_pass(;
 
     loss_per_player = (
         game_value_per_player.V1 +
-        10000 * solver.dual_regularization_weights[1] * dual_regularizations[1],
+        100000 * solver.dual_regularization_weights[1] * dual_regularizations[1],
         game_value_per_player.V2 +
-        10000 * solver.dual_regularization_weights[2] * dual_regularizations[2],
+        100000 * solver.dual_regularization_weights[2] * dual_regularizations[2],
     )
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
@@ -288,12 +288,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     ∇L_per_player = (∇L_1, ∇L_2)
-
-    for ∇ in ∇L_per_player
-        for (i, pp) in enumerate(trainable_parameters)
-            dpp = ∇[pp]
-            @infiltrate any(x -> isnan(x) || isinf(x), pp)
-            @infiltrate any(x -> isnan(x) || isinf(x), dpp)
+    if !isnothing(solver.enable_learning) && any(solver.enable_learning)
+        for ∇ in ∇L_per_player
+            for (i, pp) in enumerate(trainable_parameters)
+                dpp = ∇[pp]
+                @infiltrate any(x -> isnan(x) || isinf(x), pp)
+                @infiltrate any(x -> isnan(x) || isinf(x), dpp)
+            end
         end
     end
 
