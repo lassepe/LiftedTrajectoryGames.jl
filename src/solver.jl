@@ -221,10 +221,8 @@ function forward_pass(;
         ) ./ solver.planning_horizon
 
     loss_per_player = (
-        game_value_per_player.V1 +
-        100000 * solver.dual_regularization_weights[1] * dual_regularizations[1],
-        game_value_per_player.V2 +
-        100000 * solver.dual_regularization_weights[2] * dual_regularizations[2],
+        game_value_per_player.V1 + solver.dual_regularization_weights[1] * dual_regularizations[1],
+        game_value_per_player.V2 + solver.dual_regularization_weights[2] * dual_regularizations[2],
     )
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
