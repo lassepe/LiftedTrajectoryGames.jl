@@ -25,7 +25,7 @@ using TrajectoryGamesBase:
     Block,
     blocks,
     mortar
-using Flux: Flux, Chain, Dense, Optimise, @functor
+using Flux: Flux, Chain, Dense, Optimise, leakyrelu, @functor
 using Makie: Makie
 using StatsBase: Weights, sample
 using Random: Random

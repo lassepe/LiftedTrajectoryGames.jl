@@ -185,7 +185,7 @@ function forward_pass(;
 
         # TODO, for debugging, cost-to-go is disabled for the evader since it shouldn't matter too
         # much for them; they can resolve their strategy even in open-loop pretty well
-        TODO_discount_factor = 0.99
+        TODO_discount_factor = 0.95
         trajectory_cost .+ TODO_discount_factor^TODO_turn_length * cost_to_go
     end
 
@@ -337,7 +337,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
        !isnothing(solver.enable_learning) &&
        any(solver.enable_learning)
         TODO_state_value_batch_size = 50
-        TODO_n_value_epochs = 1
+        TODO_n_value_epochs = 10
 
         push!(
             solver.replay_buffer,

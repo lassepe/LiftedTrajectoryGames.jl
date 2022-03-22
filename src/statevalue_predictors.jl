@@ -21,6 +21,7 @@ function NNValuePredictor(;
     output_scaling = 1,
     n_hidden_layers = 4,
     hidden_dim = 100,
+    activation = leakyrelu,
 )
     init(in, out) = Flux.glorot_uniform(rng, in, out)
 
@@ -28,8 +29,11 @@ function NNValuePredictor(;
     model = let
         legs = map(1:num_players(game)) do ii
             Chain(
-                Dense(state_dim(game.dynamics), hidden_dim, sin; init),
-                (Dense(hidden_dim, hidden_dim, sin; init) for _ in 1:(n_hidden_layers - 1))...,
+                Dense(state_dim(game.dynamics), hidden_dim, activation; init),
+                (
+                    Dense(hidden_dim, hidden_dim, activation; init) for
+                    _ in 1:(n_hidden_layers - 1)
+                )...,
                 Dense(hidden_dim, 1; init),
                 x -> output_scaling * x,
                 only,
