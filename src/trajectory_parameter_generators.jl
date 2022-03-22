@@ -39,25 +39,14 @@ function NNActionGenerator(;
     NNActionGenerator(model, optimizer, n_actions, gradient_clipping_threshold)
 end
 
-using Infiltrator
-
 function (g::NNActionGenerator)(states)
     # TODO, this should not be necessary?
     x = reduce(vcat, states)
     stacked_goals = g.model(x)
-    ps = collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
-    Zygote.ignore() do
-        @infiltrate any([any(x -> isnan(x) || isinf(x), p) for p in ps])
-    end
-    ps
+    collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
 function preprocess_gradients!(∇, reference_generator::NNActionGenerator, θ; kwargs...)
-    #    for p in θ
-    #        @infiltrate any(x -> isnan(x) || isinf(x), p)
-    #        @infiltrate any(x -> isnan(x) || isinf(x), ∇[p])
-    #    end
-
     if !isnothing(reference_generator.gradient_clipping_threshold)
         v = maximum(θ) do p
             maximum(g -> abs(g), ∇[p])
@@ -69,11 +58,6 @@ function preprocess_gradients!(∇, reference_generator::NNActionGenerator, θ; 
             end
         end
     end
-
-    #    for p in θ
-    #        @infiltrate any(x -> isnan(x) || isinf(x), p)
-    #        @infiltrate any(x -> isnan(x) || isinf(x), ∇[p])
-    #    end
 
     ∇
 end

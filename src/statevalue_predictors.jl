@@ -49,18 +49,10 @@ end
 
 function (p::NNValuePredictor)(state)
     joint_state = reduce(vcat, state)
-    v = p.model(joint_state)
-    Zygote.ignore() do
-        @infiltrate any(x -> isnan(x) || isinf(x), v)
-    end
-    v
+    p.model(joint_state)
 end
 
 function preprocess_gradients!(∇, state_value_predictor::NNValuePredictor, θ; kwargs...)
-    for p in θ
-        @assert !any(x -> isnan(x) || isinf(x), p)
-        @assert !any(x -> isnan(x) || isinf(x), ∇[p])
-    end
     ∇
 end
 
@@ -78,12 +70,6 @@ function fit_value_predictor!(
                 sum(v -> v^2, d.value_target_per_player - state_value_predictor(d.state))
             end / length(replay_buffer)
         end
-
-        @assert !any(map(θ) do p
-            dp = ∇L[p]
-            any(x -> isnan(x) || isinf(x), p)
-            any(x -> isnan(x) || isinf(x), dp)
-        end)
 
         # TODO: we shouldn't have to pass the annoying `action_gradient_scaling` here
         update_parameters!(state_value_predictor, ∇L; action_gradient_scaling = 1)

@@ -289,11 +289,12 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     ∇L_per_player = (∇L_1, ∇L_2)
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
+        # TODO: remove before merge to main
         for ∇ in ∇L_per_player
             for (i, pp) in enumerate(trainable_parameters)
                 dpp = ∇[pp]
-                @infiltrate any(x -> isnan(x) || isinf(x), pp)
-                @infiltrate any(x -> isnan(x) || isinf(x), dpp)
+                @assert !any(x -> isnan(x) || isinf(x), pp)
+                @assert !any(x -> isnan(x) || isinf(x), dpp)
             end
         end
     end
@@ -351,7 +352,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         )
 
         if length(solver.replay_buffer) >= TODO_state_value_batch_size
-            println("fitting")
             fit_value_predictor!(
                 solver.state_value_predictor,
                 solver.replay_buffer,
