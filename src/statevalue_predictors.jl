@@ -7,25 +7,32 @@ Split(paths...) = Split(paths)
 @functor Split
 (m::Split)(x::AbstractArray) = map(f -> f(x), m.paths)
 
-struct NNValuePredictor{M,O}
-    model::M
-    optimizer::O
+struct NeuralStateValuePredictor{T1,T2,T3}
+    model::T1
+    optimizer::T2
+    replay_buffer::T3
+    turn_length::Int
+    batch_size::Int
+    n_epochs_per_update::Int
 end
 
-@functor NNValuePredictor (model,)
+@functor NeuralStateValuePredictor (model,)
 
-function NNValuePredictor(;
+function NeuralStateValuePredictor(;
     game,
     learning_rate,
     rng,
+    turn_length,
+    replay_buffer = NamedTuple[],
     output_scaling = 1,
     n_hidden_layers = 4,
     hidden_dim = 100,
     activation = leakyrelu,
+    batch_size = 50,
+    n_epochs_per_update = 10,
 )
     init(in, out) = Flux.glorot_uniform(rng, in, out)
 
-    # TODO: use Flux.Parallel for a decoupled architecture here
     model = let
         legs = map(1:num_players(game)) do ii
             Chain(
@@ -44,31 +51,34 @@ function NNValuePredictor(;
 
     optimizer = Optimise.Descent(learning_rate)
 
-    NNValuePredictor(model, optimizer)
+    NeuralStateValuePredictor(
+        model,
+        optimizer,
+        replay_buffer,
+        turn_length,
+        batch_size,
+        n_epochs_per_update,
+    )
 end
 
-function (p::NNValuePredictor)(state)
+function (p::NeuralStateValuePredictor)(state)
     joint_state = reduce(vcat, state)
     p.model(joint_state)
 end
 
-function preprocess_gradients!(∇, state_value_predictor::NNValuePredictor, θ; kwargs...)
+function preprocess_gradients!(∇, state_value_predictor::NeuralStateValuePredictor, θ; kwargs...)
     ∇
 end
 
-function fit_value_predictor!(
-    state_value_predictor::NNValuePredictor,
-    replay_buffer,
-    n_value_epochs,
-)
-    @assert length(replay_buffer) > 0
+function fit_value_predictor!(state_value_predictor::NeuralStateValuePredictor)
+    @assert length(state_value_predictor.replay_buffer) > 0
 
-    for _ in 1:n_value_epochs
+    for _ in 1:(state_value_predictor.n_epochs_per_update)
         θ = Flux.params(state_value_predictor)
         ∇L = Zygote.gradient(θ) do
-            sum(replay_buffer) do d
+            sum(state_value_predictor.replay_buffer) do d
                 sum(v -> v^2, d.value_target_per_player - state_value_predictor(d.state))
-            end / length(replay_buffer)
+            end / length(state_value_predictor.replay_buffer)
         end
 
         # TODO: we shouldn't have to pass the annoying `action_gradient_scaling` here

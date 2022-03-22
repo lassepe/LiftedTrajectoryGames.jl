@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -25,8 +25,6 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
     execution_policy::T10
     "TODO: refine docstring; A value network to predict the state-value for both (?) players"
     state_value_predictor::T11
-    "TODO: refine docstring/interface"
-    replay_buffer::T12
 end
 
 """
@@ -53,7 +51,6 @@ function LiftedTrajectoryGameSolver(
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
-    replay_buffer = nothing,
 )
     num_players(game) == 2 ||
         error("Currently, only 2-player problems are supported by this solver.")
@@ -107,7 +104,6 @@ function LiftedTrajectoryGameSolver(
         trajectory_caches,
         execution_policy,
         state_value_predictor,
-        replay_buffer,
     )
 end
 
@@ -330,16 +326,13 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
     end
 
-    # fill repaly buffer
-    # TODO improve momory allocation stuff
+    # fill replay buffer
+    # TODO: probably move the trigger into some state value logic
     if !isnothing(solver.state_value_predictor) &&
        !isnothing(solver.enable_learning) &&
        any(solver.enable_learning)
-        TODO_state_value_batch_size = 50
-        TODO_n_value_epochs = 10
-
         push!(
-            solver.replay_buffer,
+            solver.state_value_predictor.replay_buffer,
             (;
                 value_target_per_player = [
                     info.game_value_per_player.V1,
@@ -349,13 +342,10 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             ),
         )
 
-        if length(solver.replay_buffer) >= TODO_state_value_batch_size
-            fit_value_predictor!(
-                solver.state_value_predictor,
-                solver.replay_buffer,
-                TODO_n_value_epochs,
-            )
-            empty!(solver.replay_buffer)
+        if length(solver.state_value_predictor.replay_buffer) >=
+           solver.state_value_predictor.batch_size
+            fit_value_predictor!(solver.state_value_predictor)
+            empty!(solver.state_value_predictor.replay_buffer)
         end
     end
 
