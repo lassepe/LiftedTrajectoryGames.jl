@@ -165,24 +165,19 @@ function forward_pass(;
             mortar([u1, u2])
         end
 
-        TODO_turn_length = 10
-        trajectory_cost = solver.coupling_constraints_handler(
-            game,
-            xs[1:TODO_turn_length],
-            us[1:TODO_turn_length],
-        )
+        (; turn_length) = solver.state_value_predictor
+
+        trajectory_cost =
+            solver.coupling_constraints_handler(game, xs[1:turn_length], us[1:turn_length])
         if isnothing(solver.state_value_predictor)
-            cost_to_go = 0#10 * norm(t1.xs[end])
+            cost_to_go = 0
         else
             # TODO: in the zero-sum case we could have a specialized state_value_predictor that
             # exploits the symmetry in the state value.
-            cost_to_go = solver.state_value_predictor(xs[TODO_turn_length])
+            cost_to_go = game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
         end
 
-        # TODO, for debugging, cost-to-go is disabled for the evader since it shouldn't matter too
-        # much for them; they can resolve their strategy even in open-loop pretty well
-        TODO_discount_factor = 0.95
-        trajectory_cost .+ TODO_discount_factor^TODO_turn_length * cost_to_go
+        trajectory_cost .+ cost_to_go
     end
 
     # transpose matrix of tuples to tuple of matrices
@@ -282,17 +277,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     ∇L_per_player = (∇L_1, ∇L_2)
-    if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        # TODO: remove before merge to main
-        for ∇ in ∇L_per_player
-            for (i, pp) in enumerate(trainable_parameters)
-                dpp = ∇[pp]
-                @assert !any(x -> isnan(x) || isinf(x), pp)
-                @assert !any(x -> isnan(x) || isinf(x), dpp)
-            end
-        end
-    end
-
     (; loss_per_player, info) = forward_pass_result
 
     # Store computed trajectories in caches if caching is enabled
