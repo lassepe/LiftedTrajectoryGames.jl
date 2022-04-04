@@ -40,7 +40,6 @@ function NNActionGenerator(;
 end
 
 function (g::NNActionGenerator)(states)
-    # TODO, this should not be necessary?
     x = reduce(vcat, states)
     stacked_goals = g.model(x)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))

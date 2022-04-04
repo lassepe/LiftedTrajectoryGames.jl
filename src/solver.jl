@@ -23,7 +23,8 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "An AbstractExecutionPolicy that determines whether the solve is computed in parallel or
     sequentially."
     execution_policy::T10
-    "TODO: refine docstring; A value network to predict the state-value for both (?) players"
+    "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
+    optimal cost-to-go's for each player."
     state_value_predictor::T11
 end
 
@@ -248,6 +249,26 @@ function cost_gradients(back, solver, ::ZeroSumCostStructure)
     (; ∇L_1, ∇L_2 = -1 .* ∇L_1)
 end
 
+function update_state_value_predictor!(solver, state, game_value_per_player)
+    if !isnothing(solver.state_value_predictor) &&
+       !isnothing(solver.enable_learning) &&
+       any(solver.enable_learning)
+        push!(
+            solver.state_value_predictor.replay_buffer,
+            (;
+                value_target_per_player = [game_value_per_player.V1, game_value_per_player.V2],
+                state,
+            ),
+        )
+
+        if length(solver.state_value_predictor.replay_buffer) >=
+           solver.state_value_predictor.batch_size
+            fit_value_predictor!(solver.state_value_predictor)
+            empty!(solver.state_value_predictor.replay_buffer)
+        end
+    end
+end
+
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ProductDynamics},
@@ -316,28 +337,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
     end
 
-    # fill replay buffer
-    # TODO: probably move the trigger into some state value logic
-    if !isnothing(solver.state_value_predictor) &&
-       !isnothing(solver.enable_learning) &&
-       any(solver.enable_learning)
-        push!(
-            solver.state_value_predictor.replay_buffer,
-            (;
-                value_target_per_player = [
-                    info.game_value_per_player.V1,
-                    info.game_value_per_player.V2,
-                ],
-                state = initial_state,
-            ),
-        )
-
-        if length(solver.state_value_predictor.replay_buffer) >=
-           solver.state_value_predictor.batch_size
-            fit_value_predictor!(solver.state_value_predictor)
-            empty!(solver.state_value_predictor.replay_buffer)
-        end
-    end
+    update_state_value_predictor!(solver, initial_state, info.game_value_per_player)
 
     γs = map(
         Iterators.countfrom(),
