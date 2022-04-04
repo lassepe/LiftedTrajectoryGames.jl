@@ -165,10 +165,16 @@ function forward_pass(;
             mortar([u1, u2])
         end
 
-        (; turn_length) = solver.state_value_predictor
+        turn_length =
+            isnothing(solver.state_value_predictor) ? length(xs) :
+            solver.state_value_predictor.turn_length
 
-        trajectory_cost =
-            solver.coupling_constraints_handler(game, xs[1:turn_length], us[1:turn_length])
+        trajectory_cost = solver.coupling_constraints_handler(
+            game,
+            xs[1:turn_length],
+            us[1:(turn_length - 1)],
+        )
+
         if isnothing(solver.state_value_predictor)
             cost_to_go = 0
         else
