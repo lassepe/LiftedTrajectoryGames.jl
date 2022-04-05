@@ -80,8 +80,6 @@ function fit_value_predictor!(state_value_predictor::NeuralStateValuePredictor)
                 sum(v -> v^2, d.value_target_per_player - state_value_predictor(d.state))
             end / length(state_value_predictor.replay_buffer)
         end
-
-        # TODO: we shouldn't have to pass the annoying `action_gradient_scaling` here
-        update_parameters!(state_value_predictor, ∇L; action_gradient_scaling = 1)
+        update_parameters!(state_value_predictor, ∇L)
     end
 end
