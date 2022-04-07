@@ -33,19 +33,19 @@ function LiftedTrajectoryGameSolver(
     planning_horizon;
     n_players = 2,
     rng = Random.MersenneTwister(1),
-    initial_parameters = (:random for _ ∈ 1:n_players),
-    n_actions = 2ones(n_players),
-    reference_generator_constructors = (NNActionGenerator for _ ∈ 1:n_players),
+    initial_parameters = [:random for _ ∈ 1:n_players],
+    n_actions = 2ones(Int,n_players),
+    reference_generator_constructors = [NNActionGenerator for _ ∈ 1:n_players],
     learning_rates = 0.05*ones(n_players),
-    trajectory_parameterizations = ( 
+    trajectory_parameterizations = [ 
         InputReferenceParameterization(; α = 3, params_abs_max = 10) for _ ∈ 1:n_players
-    ),
+    ],
     coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     trajectory_solver = QPSolver(),
     dual_regularization_weights = 1e-4*ones(n_players),
     finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
     enable_learning = ones(Bool, n_players),
-    trajectory_caches = (nothing for _ ∈ 1:n_players),
+    trajectory_caches = [nothing for _ ∈ 1:n_players],
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
 )
@@ -65,7 +65,6 @@ function LiftedTrajectoryGameSolver(
                 trajectory_solver,
             )
         end
-
     trajectory_parameter_generators = map(
         reference_generator_constructors,
         trajectory_generators,
@@ -114,7 +113,7 @@ end
 function generate_trajectory_candidates(solver, initial_state, enable_caching_per_player;)
     state_per_player = blocks(initial_state)
     n_players = length(state_per_player)
-    candidates_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
+    candidates_per_player = map_threadable([1:n_players...], solver.execution_policy) do ii
         cache = solver.trajectory_caches[ii]
         if !isnothing(cache) && enable_caching_per_player[ii]
             cache
@@ -149,25 +148,20 @@ function forward_pass(;
         generate_trajectory_candidates(solver, initial_state, enable_caching_per_player;)
 
     trajectory_pairings = Zygote.ignore() do
-        Iterators.product((eachindex(candidates_per_player[i]) for i ∈ 1:num_players)...) |> collect
+        Iterators.product([eachindex(candidates_per_player[i]) for i ∈ 1:n_players]...) |> collect
     end
 
     # f
     # Evaluate the functions on all joint trajectories in the cost tensor
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do (i)
-        trajectories = (candidates_per_player[j][i[j]].trajectory for j ∈ 1:n_players)
-        #t1 = candidates_per_player[1][i1].trajectory
-        #t2 = candidates_per_player[2][i2].trajectory
+        trajectories = [candidates_per_player[j][i[j]].trajectory for j ∈ 1:n_players]
 
-        xs = map((t.xs for t ∈ trajectories)...) do (x...)
-            mortar(x)
+        xs = map([t.xs for t ∈ trajectories]...) do x...
+            mortar([x...])
         end
-        #xs = map(t1.xs, t2.xs) do x1, x2
-        #    mortar([x1, x2])
-        #end
 
-        us = map((t.us for t ∈ trajectories)...) do (u...)
-            mortar(u)
+        us = map([t.us for t ∈ trajectories]...) do u...
+            mortar([u...])
         end
 
         solver.coupling_constraints_handler(game, xs, us)
@@ -196,13 +190,11 @@ function forward_pass(;
         costs_per_player,
     )
     dual_regularizations =
-        (
-            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i ∈ 1:n_players
-        ) ./ solver.planning_horizon
+        [sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i ∈ 1:n_players]./ solver.planning_horizon
 
-    loss_per_player = (
+    loss_per_player = [ 
         game_value_per_player.V[i] + solver.dual_regularization_weights[i] * dual_regularizations[i] for i ∈ 1:n_players
-    )
+    ] 
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
 

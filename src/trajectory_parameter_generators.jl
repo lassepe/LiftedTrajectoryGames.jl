@@ -28,7 +28,6 @@ function NNActionGenerator(;
     else
         @assert false
     end
-
     model = Chain(
         Dense(state_dim, hidden_dim, tanh; init),
         (Dense(hidden_dim, hidden_dim, tanh; init) for _ in 1:(n_hidden_layers - 1))...,
