@@ -1,9 +1,10 @@
 #== NNActionGenerator ==#
 
-struct NNActionGenerator{M,O}
+struct NNActionGenerator{M,O,G}
     model::M
     optimizer::O
     n_actions::Int
+    gradient_clipping_threshold::G
 end
 @functor NNActionGenerator (model,)
 
@@ -17,6 +18,8 @@ function NNActionGenerator(;
     initial_parameters,
     hidden_dim = 100,
     n_hidden_layers = 2,
+    output_activation = tanh,
+    gradient_clipping_threshold = nothing,
 )
     if initial_parameters === :random
         init = (in, out) -> Flux.glorot_uniform(rng, in, out)
@@ -29,13 +32,11 @@ function NNActionGenerator(;
     model = Chain(
         Dense(state_dim, hidden_dim, tanh; init),
         (Dense(hidden_dim, hidden_dim, tanh; init) for _ in 1:(n_hidden_layers - 1))...,
-        Dense(hidden_dim, n_params * n_actions, tanh; init),
+        Dense(hidden_dim, n_params * n_actions, output_activation; init),
         x -> params_abs_max .* x,
     )
-
     optimizer = Optimise.Descent(learning_rate)
-
-    NNActionGenerator(model, optimizer, n_actions)
+    NNActionGenerator(model, optimizer, n_actions, gradient_clipping_threshold)
 end
 
 function (g::NNActionGenerator)(states)
@@ -44,7 +45,19 @@ function (g::NNActionGenerator)(states)
     collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
 end
 
-function preprocess_gradients!(∇, g::NNActionGenerator, θ; kwargs...)
+function preprocess_gradients!(∇, reference_generator::NNActionGenerator, θ; kwargs...)
+    if !isnothing(reference_generator.gradient_clipping_threshold)
+        v = maximum(θ) do p
+            maximum(g -> abs(g), ∇[p])
+        end
+
+        if v > reference_generator.gradient_clipping_threshold
+            for p in θ
+                ∇[p] .*= reference_generator.gradient_clipping_threshold / v
+            end
+        end
+    end
+
     ∇
 end
 
@@ -63,6 +76,8 @@ function OnlineOptimizationActionGenerator(;
     learning_rate,
     rng,
     initial_parameters = nothing,
+    # this solver does not support gradient clipping for now
+    gradient_clipping_threshold::Nothing = nothing,
 )
     params = if isnothing(initial_parameters)
         (rand(rng, n_params, n_actions) .- 0.5) .* (2params_abs_max)

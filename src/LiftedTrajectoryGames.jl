@@ -1,3 +1,5 @@
+__precompile__(false)
+
 module LiftedTrajectoryGames
 
 using FiniteGames: FiniteGames
@@ -14,9 +16,9 @@ using TrajectoryGamesBase:
     AbstractDynamics,
     AbstractStrategy,
     JointStrategy,
-    AbstractTrajectoryGameCost,
-    ZeroSumTrajectoryGameCost,
     ProductDynamics,
+    GeneralSumCostStructure,
+    ZeroSumCostStructure,
     state_dim,
     num_players,
     join_actions,
@@ -30,10 +32,14 @@ using Random: Random
 using Zygote: Zygote
 using LinearAlgebra: norm
 using ParameterSchedulers: ParameterSchedulers
+using ThreadsX: ThreadsX
+using ThreadsXChainRules: ThreadsXChainRules
 
+include("execution_policy.jl")
 include("trajectory_parameter_generators.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")
+include("coupling_constraint_handlers.jl")
 include("solver.jl")
 include("visualization.jl")
 

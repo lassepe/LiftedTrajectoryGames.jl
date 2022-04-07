@@ -36,7 +36,6 @@ function (strategy::LiftedTrajectoryStrategy)(state, t)
 end
 
 struct PrecomputedAction{TS,TC,TN}
-    # TODO: Fix before merging anywhere! Abusing `reference_state` to store control input
     reference_state::TS
     reference_control::TC
     next_substate::TN
