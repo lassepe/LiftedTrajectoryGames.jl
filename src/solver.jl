@@ -43,7 +43,7 @@ function LiftedTrajectoryGameSolver(
     coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     trajectory_solver = QPSolver(),
     dual_regularization_weights = 1e-4*ones(n_players),
-    finite_game_solver = FiniteGames.LemkeHowsonGameSolver(),
+    finite_game_solver = FiniteGames.TensorGameSolver(),
     enable_learning = ones(Bool, n_players),
     trajectory_caches = [nothing for _ ∈ 1:n_players],
     gradient_clipping_threshold = nothing,
@@ -225,7 +225,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ProductDynamics},
     initial_state;
-    min_action_probability = 0.05,
+    min_action_probability = 0.0,
     enable_caching_per_player = zeros(Bool, num_players(game)),
     parameter_noise = 0.0,
     scale_action_gradients = true,
