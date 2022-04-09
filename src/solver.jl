@@ -225,7 +225,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ProductDynamics},
     initial_state;
-    min_action_probability = 0.0,
+    min_action_probability = 0.05,
     enable_caching_per_player = zeros(Bool, num_players(game)),
     parameter_noise = 0.0,
     scale_action_gradients = true,
