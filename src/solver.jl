@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -23,6 +23,9 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "An AbstractExecutionPolicy that determines whether the solve is computed in parallel or
     sequentially."
     execution_policy::T10
+    "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
+    optimal cost-to-go's for each player."
+    state_value_predictor::T11
 end
 
 """
@@ -33,21 +36,22 @@ function LiftedTrajectoryGameSolver(
     planning_horizon;
     n_players = 2,
     rng = Random.MersenneTwister(1),
-    initial_parameters = [:random for _ ∈ 1:n_players],
-    n_actions = 2ones(Int,n_players),
-    reference_generator_constructors = [NNActionGenerator for _ ∈ 1:n_players],
-    learning_rates = 0.05*ones(n_players),
-    trajectory_parameterizations = [ 
-        InputReferenceParameterization(; α = 3, params_abs_max = 10) for _ ∈ 1:n_players
+    initial_parameters = [:random for _ in 1:n_players],
+    n_actions = 2ones(Int, n_players),
+    reference_generator_constructors = [NNActionGenerator for _ in 1:n_players],
+    learning_rates = 0.05 * ones(n_players),
+    trajectory_parameterizations = [
+        InputReferenceParameterization(; α = 3, params_abs_max = 10) for _ in 1:n_players
     ],
     coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     trajectory_solver = QPSolver(),
-    dual_regularization_weights = 1e-4*ones(n_players),
+    dual_regularization_weights = 1e-4 * ones(n_players),
     finite_game_solver = FiniteGames.TensorGameSolver(),
     enable_learning = ones(Bool, n_players),
-    trajectory_caches = [nothing for _ ∈ 1:n_players],
+    trajectory_caches = [nothing for _ in 1:n_players],
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
+    state_value_predictor = nothing,
 )
     #num_players(game) == 2 ||
     #    error("Currently, only 2-player problems are supported by this solver.")
@@ -99,6 +103,7 @@ function LiftedTrajectoryGameSolver(
         enable_learning,
         trajectory_caches,
         execution_policy,
+        state_value_predictor,
     )
 end
 
@@ -134,7 +139,6 @@ function generate_trajectory_candidates(solver, initial_state, enable_caching_pe
     candidates_per_player
 end
 
-
 # Make this compatable with many players
 function forward_pass(;
     solver,
@@ -148,23 +152,41 @@ function forward_pass(;
         generate_trajectory_candidates(solver, initial_state, enable_caching_per_player;)
 
     trajectory_pairings = Zygote.ignore() do
-        Iterators.product([eachindex(candidates_per_player[i]) for i ∈ 1:n_players]...) |> collect
+        Iterators.product([eachindex(candidates_per_player[i]) for i in 1:n_players]...) |> collect
     end
 
     # f
     # Evaluate the functions on all joint trajectories in the cost tensor
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do (i)
-        trajectories = [candidates_per_player[j][i[j]].trajectory for j ∈ 1:n_players]
+        trajectories = [candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
 
-        xs = map([t.xs for t ∈ trajectories]...) do x...
+        xs = map([t.xs for t in trajectories]...) do x...
             mortar([x...])
         end
 
-        us = map([t.us for t ∈ trajectories]...) do u...
+        us = map([t.us for t in trajectories]...) do u...
             mortar([u...])
         end
 
-        solver.coupling_constraints_handler(game, xs, us)
+        turn_length =
+            isnothing(solver.state_value_predictor) ? length(xs) :
+            solver.state_value_predictor.turn_length
+
+        trajectory_cost = solver.coupling_constraints_handler(
+            game,
+            xs[1:turn_length],
+            us[1:(turn_length - 1)],
+        )
+
+        if isnothing(solver.state_value_predictor)
+            cost_to_go = 0
+        else
+            # TODO: in the zero-sum case we could have a specialized state_value_predictor that
+            # exploits the symmetry in the state value.
+            cost_to_go = game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
+        end
+
+        trajectory_cost .+ cost_to_go
     end
 
     # transpose tensor of tuples to tuple of tensors 
@@ -185,16 +207,16 @@ function forward_pass(;
     end
 
     # L
-    game_value_per_player = FiniteGames.game_cost(
-        mixing_strategies,
-        costs_per_player,
-    )
+    game_value_per_player = FiniteGames.game_cost(mixing_strategies, costs_per_player)
     dual_regularizations =
-        [sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i ∈ 1:n_players]./ solver.planning_horizon
+        [
+            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i in 1:n_players
+        ] ./ solver.planning_horizon
 
-    loss_per_player = [ 
-        game_value_per_player.V[i] + solver.dual_regularization_weights[i] * dual_regularizations[i] for i ∈ 1:n_players
-    ] 
+    loss_per_player = [
+        game_value_per_player.V[i] +
+        solver.dual_regularization_weights[i] * dual_regularizations[i] for i in 1:n_players
+    ]
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
 
@@ -202,15 +224,15 @@ function forward_pass(;
 end
 
 function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
-    ∇L = ( begin    
-        if solver.enable_learning[n]
-            loss_per_player = ( i==n ? 1 : nothing for i ∈ 1:n_players)
-            back((; loss_per_player, info=nothing)) |> copy
-        else
-            nothing
-        end
-    end
-    for n ∈ 1:n_players
+    ∇L = (
+        begin
+            if solver.enable_learning[n]
+                loss_per_player = (i == n ? 1 : nothing for i in 1:n_players)
+                back((; loss_per_player, info = nothing)) |> copy
+            else
+                nothing
+            end
+        end for n in 1:n_players
     )
 end
 
@@ -219,6 +241,26 @@ function cost_gradients(back, solver, n_players, ::ZeroSumCostStructure)
     isnothing(solver.coupling_constraints_handler) || error("Not implemented")
     ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing))
     ∇L = (∇L_1, -1 .* ∇L_2)
+end
+
+function update_state_value_predictor!(solver, state, game_value_per_player)
+    if !isnothing(solver.state_value_predictor) &&
+       !isnothing(solver.enable_learning) &&
+       any(solver.enable_learning)
+        push!(
+            solver.state_value_predictor.replay_buffer,
+            (;
+                value_target_per_player = [game_value_per_player.V1, game_value_per_player.V2],
+                state,
+            ),
+        )
+
+        if length(solver.state_value_predictor.replay_buffer) >=
+           solver.state_value_predictor.batch_size
+            fit_value_predictor!(solver.state_value_predictor)
+            empty!(solver.state_value_predictor.replay_buffer)
+        end
+    end
 end
 
 function TrajectoryGamesBase.solve_trajectory_game!(
@@ -232,7 +274,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 )
     n_players = num_players(game)
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        trainable_params = Flux.params(solver.trajectory_parameter_generators...)
+        trainable_parameters = Flux.params(solver.trajectory_parameter_generators...)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
@@ -241,7 +283,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
                 min_action_probability,
                 enable_caching_per_player,
             ),
-            trainable_params,
+            trainable_parameters,
         )
         ∇L_per_player = cost_gradients(back, solver, n_players, game.cost.structure)
     else
@@ -252,7 +294,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             min_action_probability,
             enable_caching_per_player,
         )
-        ∇L_per_player = (nothing for n ∈ 1:n_players)
+        ∇L_per_player = (nothing for n in 1:n_players)
     end
 
     (; loss_per_player, info) = forward_pass_result
@@ -287,6 +329,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             )
         end
     end
+
+    update_state_value_predictor!(solver, initial_state, info.game_value_per_player)
 
     γs = map(
         Iterators.countfrom(),

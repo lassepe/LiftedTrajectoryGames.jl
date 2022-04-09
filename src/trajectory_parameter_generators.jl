@@ -104,9 +104,9 @@ end
 
 #=== shared implementations ===#
 
-function update_parameters!(g, ∇; noise = nothing, rng = nothing, action_gradient_scaling)
+function update_parameters!(g, ∇; noise = nothing, rng = nothing, kwargs...)
     θ = Flux.params(g)
-    preprocess_gradients!(∇, g, θ; action_gradient_scaling)
+    preprocess_gradients!(∇, g, θ; kwargs...)
     Optimise.update!(g.optimizer, θ, ∇)
 
     if !isnothing(noise)
