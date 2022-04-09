@@ -34,21 +34,20 @@ Convenience constructor to drive a suitable solver directly form a given game.
 function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ProductDynamics},
     planning_horizon;
-    n_players = 2,
     rng = Random.MersenneTwister(1),
-    initial_parameters = [:random for _ in 1:n_players],
-    n_actions = 2ones(Int, n_players),
-    reference_generator_constructors = [NNActionGenerator for _ in 1:n_players],
-    learning_rates = 0.05 * ones(n_players),
+    initial_parameters = [:random for _ in 1:num_players(game)],
+    n_actions = [2 for _ in 1:num_players(game)],
+    reference_generator_constructors = [NNActionGenerator for _ in 1:num_players(game)],
+    learning_rates = [0.05 for _ in 1:num_players(game)],
     trajectory_parameterizations = [
-        InputReferenceParameterization(; α = 3, params_abs_max = 10) for _ in 1:n_players
+        InputReferenceParameterization(; α = 3, params_abs_max = 10) for _ in 1:num_players(game)
     ],
     coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     trajectory_solver = QPSolver(),
-    dual_regularization_weights = 1e-4 * ones(n_players),
+    dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
     finite_game_solver = FiniteGames.TensorGameSolver(),
-    enable_learning = ones(Bool, n_players),
-    trajectory_caches = [nothing for _ in 1:n_players],
+    enable_learning = [true for _ in 1:num_players(game)],
+    trajectory_caches = [nothing for _ in 1:num_players(game)],
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
