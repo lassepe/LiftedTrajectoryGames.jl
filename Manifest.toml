@@ -822,9 +822,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "58f25e56b706f95125dcb796f39e1fb01d913a71"
+git-tree-sha1 = "a7e100b068a6cbead98b9f4e5c8b488934b7aea0"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.10"
+version = "0.3.11"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -1440,9 +1440,9 @@ version = "0.1.1"
 
 [[deps.TensorGames]]
 deps = ["ChainRulesCore", "LinearAlgebra", "PATHSolver", "SparseArrays", "Test"]
-git-tree-sha1 = "5cd4f820e6cf9e40486207c4a62071a72372b4a7"
+git-tree-sha1 = "f92bd3f804495d598ab637fe4fd7910568f5314d"
 uuid = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
-version = "0.3.1"
+version = "0.3.2"
 
 [[deps.TermInterface]]
 git-tree-sha1 = "7aa601f12708243987b88d1b453541a75e3d8c7a"
@@ -1503,9 +1503,9 @@ version = "0.3.0"
 
 [[deps.Tullio]]
 deps = ["ChainRulesCore", "DiffRules", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "7830c974acc69437a3fee35dd7b510a74cbc862d"
+git-tree-sha1 = "859e2e9a7222553a0c052e423557cedb49376da9"
 uuid = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
-version = "0.3.3"
+version = "0.3.4"
 
 [[deps.URIs]]
 git-tree-sha1 = "97bbe755a53fe859669cd907f2d96aee8d2c1355"
