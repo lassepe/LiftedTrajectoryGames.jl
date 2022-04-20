@@ -213,7 +213,7 @@ function forward_pass(;
         ] ./ solver.planning_horizon
 
     loss_per_player = [
-        game_value_per_player.V[i] +
+        game_value_per_player[i] +
         solver.dual_regularization_weights[i] * dual_regularizations[i] for i in 1:n_players
     ]
 
