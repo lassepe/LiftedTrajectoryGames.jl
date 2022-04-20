@@ -253,7 +253,7 @@ function update_state_value_predictor!(solver, state, game_value_per_player)
        any(solver.enable_learning)
         push!(
             solver.state_value_predictor.replay_buffer,
-            (; value_target_per_player = game_value_per_player.V, state),
+            (; value_target_per_player = game_value_per_player, state),
         )
 
         if length(solver.state_value_predictor.replay_buffer) >=
