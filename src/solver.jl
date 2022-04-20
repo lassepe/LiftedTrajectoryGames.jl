@@ -117,7 +117,7 @@ end
 function generate_trajectory_candidates(solver, initial_state, enable_caching_per_player;)
     state_per_player = blocks(initial_state)
     n_players = length(state_per_player)
-    candidates_per_player = map_threadable([1:n_players...], solver.execution_policy) do ii
+    candidates_per_player = map_threadable([1:n_players;], solver.execution_policy) do ii
         cache = solver.trajectory_caches[ii]
         if !isnothing(cache) && enable_caching_per_player[ii]
             cache
@@ -154,17 +154,22 @@ function forward_pass(;
         Iterators.product([eachindex(candidates_per_player[i]) for i in 1:n_players]...) |> collect
     end
 
+    #flat_input, unflatten_input = FiniteDifferences.to_vec(candidates_per_player)
+
+    #Zygote.forwarddiff(flat_input) do fp
+    #_candidates_per_player = unflatten_input(fp)
+    _candidates_per_player = candidates_per_player
     # f
     # Evaluate the functions on all joint trajectories in the cost tensor
-    cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do (i)
-        trajectories = [candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
+    cost_tensor = map_threadable(trajectory_pairings, MultiThreadedExecutionPolicy()) do i
+        trajectories = [_candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
 
         xs = map([t.xs for t in trajectories]...) do x...
-            mortar([x...])
+            mortar(collect(x))
         end
 
         us = map([t.us for t in trajectories]...) do u...
-            mortar([u...])
+            mortar(collect(u))
         end
 
         turn_length =
@@ -187,8 +192,9 @@ function forward_pass(;
 
         trajectory_cost .+ cost_to_go
     end
+    #end
 
-    # transpose tensor of tuples to tuple of tensors 
+    # transpose tensor of tuples to tuple of tensors
     costs_per_player = map(1:n_players) do player_i
         map(cost_tensor) do pairing
             pairing[player_i]
@@ -213,8 +219,7 @@ function forward_pass(;
         ] ./ solver.planning_horizon
 
     loss_per_player = [
-        game_value_per_player[i] +
-        solver.dual_regularization_weights[i] * dual_regularizations[i] for i in 1:n_players
+        game_value_per_player[i] + solver.dual_regularization_weights[i] * dual_regularizations[i] for i in 1:n_players
     ]
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
