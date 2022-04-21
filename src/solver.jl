@@ -52,9 +52,6 @@ function LiftedTrajectoryGameSolver(
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
 )
-    #num_players(game) == 2 ||
-    #    error("Currently, only 2-player problems are supported by this solver.")
-
     # setup a trajectory generator for every player
     trajectory_generators =
         map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
@@ -154,15 +151,10 @@ function forward_pass(;
         Iterators.product([eachindex(candidates_per_player[i]) for i in 1:n_players]...) |> collect
     end
 
-    #flat_input, unflatten_input = FiniteDifferences.to_vec(candidates_per_player)
-
-    #Zygote.forwarddiff(flat_input) do fp
-    #_candidates_per_player = unflatten_input(fp)
-    _candidates_per_player = candidates_per_player
     # f
     # Evaluate the functions on all joint trajectories in the cost tensor
     cost_tensor = map_threadable(trajectory_pairings, MultiThreadedExecutionPolicy()) do i
-        trajectories = [_candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
+        trajectories = [candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
 
         xs = map([t.xs for t in trajectories]...) do x...
             mortar(collect(x))
