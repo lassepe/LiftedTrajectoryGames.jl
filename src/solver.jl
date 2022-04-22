@@ -220,7 +220,7 @@ function forward_pass(;
 end
 
 function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
-    ∇L = (
+    ∇L = [
         begin
             if solver.enable_learning[n]
                 loss_per_player = (i == n ? 1 : nothing for i in 1:n_players)
@@ -229,7 +229,7 @@ function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
                 nothing
             end
         end for n in 1:n_players
-    )
+    ]
 end
 
 function cost_gradients(back, solver, n_players, ::ZeroSumCostStructure)
@@ -287,7 +287,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             min_action_probability,
             enable_caching_per_player,
         )
-        ∇L_per_player = (nothing for n in 1:n_players)
+        ∇L_per_player = [nothing for n in 1:n_players]
     end
 
     (; loss_per_player, info) = forward_pass_result
