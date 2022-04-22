@@ -153,7 +153,7 @@ function forward_pass(;
 
     # f
     # Evaluate the functions on all joint trajectories in the cost tensor
-    cost_tensor = map_threadable(trajectory_pairings, MultiThreadedExecutionPolicy()) do i
+    cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
         trajectories = [candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
 
         xs = map([t.xs for t in trajectories]...) do x...
