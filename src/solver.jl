@@ -198,14 +198,13 @@ function forward_pass(;
 
             trajectory_cost .+ cost_to_go
         end
+
+        # TODO: Continue here: in order for Zygote.forwarddiff to not choke on `no method matching
+        # extract (::Array{Vector})` this needs to output a vector of scalars (i.e. flattened).
+        # Alternatively, we could just pull in everythign until `game_value_per_player into this
+        # call and overload a `ForwardDiff.Dual dispatch for that.
     end
 
-    # transpose tensor of tuples to tuple of tensors
-    costs_per_player = map(1:n_players) do player_i
-        map(cost_tensor) do pairing
-            pairing[player_i]
-        end
-    end
 
     # BMG
     mixing_strategies = let
