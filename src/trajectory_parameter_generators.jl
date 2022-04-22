@@ -94,7 +94,7 @@ end
 @functor OnlineOptimizationActionGenerator (params,)
 
 function (g::OnlineOptimizationActionGenerator)(_)
-    collect(eachcol(g.params))
+    [copy(c) for c in eachcol(g.params)]
 end
 
 function preprocess_gradients!(∇, ::OnlineOptimizationActionGenerator, θ; action_gradient_scaling)
