@@ -114,7 +114,7 @@ end
 function generate_trajectory_references(solver, initial_state, enable_caching_per_player;)
     state_per_player = blocks(initial_state)
     n_players = length(state_per_player)
-    candidates_per_player = map_threadable([1:n_players;], solver.execution_policy) do ii
+    candidates_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
         cache = solver.trajectory_caches[ii]
         if !isnothing(cache) && enable_caching_per_player[ii]
             cache
@@ -238,16 +238,14 @@ function forward_pass(;
 end
 
 function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
-    ∇L = [
-        begin
-            if solver.enable_learning[n]
-                loss_per_player = [i == n ? 1 : 0 for i in 1:n_players]
-                back((; loss_per_player, info = nothing)) |> copy
-            else
-                nothing
-            end
-        end for n in 1:n_players
-    ]
+    ∇L = map(1:n_players) do n
+        if solver.enable_learning[n]
+            loss_per_player = [i == n ? 1 : 0 for i in 1:n_players]
+            back((; loss_per_player, info = nothing))
+        else
+            nothing
+        end
+    end
 end
 
 function cost_gradients(back, solver, n_players, ::ZeroSumCostStructure)
