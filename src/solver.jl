@@ -141,11 +141,11 @@ function forward_pass(;
     stacked_references = reduce(hcat, Iterators.flatten(references_per_player))
 
     ref_indices_per_player = Zygote.ignore() do
-        [1:2 for _ in 1:5]
+        [axes(references_per_player[i], 2) for i in 1:n_players]
     end
 
     trajectory_pairings = Zygote.ignore() do
-        Iterators.product([1:2 for i in 1:n_players]...) |> collect
+        Iterators.product(ref_indices_per_player...) |> collect
     end
 
     local candidates_per_player, mixing_strategies, game_value_per_player
