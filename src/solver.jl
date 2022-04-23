@@ -148,7 +148,9 @@ function forward_pass(;
         Iterators.product([1:2 for i in 1:n_players]...) |> collect
     end
 
-    cost_tensor = Zygote.forwarddiff(stacked_references) do _stacked_references
+    local candidates_per_player, mixing_strategies, game_value_per_player
+
+    loss_per_player = Zygote.forwarddiff(stacked_references) do _stacked_references
         state_per_player = blocks(initial_state)
         candidates_per_player = map(1:n_players) do ii
             ref_ids = ref_indices_per_player[ii]
@@ -166,7 +168,7 @@ function forward_pass(;
 
         # f
         # Evaluate the functions on all joint trajectories in the cost tensor
-        map_threadable(trajectory_pairings, solver.execution_policy) do i
+        cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
             trajectories = [candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
 
             xs = map([t.xs for t in trajectories]...) do x...
@@ -199,33 +201,37 @@ function forward_pass(;
             trajectory_cost .+ cost_to_go
         end
 
-        # TODO: Continue here: in order for Zygote.forwarddiff to not choke on `no method matching
-        # extract (::Array{Vector})` this needs to output a vector of scalars (i.e. flattened).
-        # Alternatively, we could just pull in everythign until `game_value_per_player into this
-        # call and overload a `ForwardDiff.Dual dispatch for that.
+        # transpose tensor of tuples to tuple of tensors
+        costs_per_player = map(1:n_players) do player_i
+            map(cost_tensor) do pairing
+                pairing[player_i]
+            end
+        end
+
+        # BMG
+        mixing_strategies = let
+            sol = FiniteGames.solve_mixed_nash(
+                solver.finite_game_solver,
+                costs_per_player;
+                ϵ = min_action_probability,
+            )
+            sol.x
+        end
+
+        # L
+        game_value_per_player = FiniteGames.game_cost(mixing_strategies, costs_per_player)
+        dual_regularizations =
+            [
+                sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for
+                i in 1:n_players
+            ] ./ solver.planning_horizon
+
+        loss_per_player = [
+            game_value_per_player[i] +
+            solver.dual_regularization_weights[i] * dual_regularizations[i] for
+            i in 1:n_players
+        ]
     end
-
-
-    # BMG
-    mixing_strategies = let
-        sol = FiniteGames.solve_mixed_nash(
-            solver.finite_game_solver,
-            costs_per_player;
-            ϵ = min_action_probability,
-        )
-        sol.x
-    end
-
-    # L
-    game_value_per_player = FiniteGames.game_cost(mixing_strategies, costs_per_player)
-    dual_regularizations =
-        [
-            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i in 1:n_players
-        ] ./ solver.planning_horizon
-
-    loss_per_player = [
-        game_value_per_player[i] + solver.dual_regularization_weights[i] * dual_regularizations[i] for i in 1:n_players
-    ]
 
     info = (; game_value_per_player, mixing_strategies, candidates_per_player)
     (; loss_per_player, info)
@@ -235,7 +241,7 @@ function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
     ∇L = [
         begin
             if solver.enable_learning[n]
-                loss_per_player = (i == n ? 1 : nothing for i in 1:n_players)
+                loss_per_player = [i == n ? 1 : 0 for i in 1:n_players]
                 back((; loss_per_player, info = nothing)) |> copy
             else
                 nothing
