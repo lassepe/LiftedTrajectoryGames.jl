@@ -140,30 +140,27 @@ function forward_pass(;
 
     stacked_references = reduce(hcat, Iterators.flatten(references_per_player))
 
-    ref_indices_per_player = Zygote.ignore() do
-        [axes(references_per_player[i], 2) for i in 1:n_players]
-    end
-
     trajectory_pairings = Zygote.ignore() do
-        Iterators.product(ref_indices_per_player...) |> collect
+        Iterators.product([axes(references_per_player[i], 1) for i in 1:n_players]...) |> collect
     end
 
     local candidates_per_player, mixing_strategies, game_value_per_player
 
     loss_per_player = Zygote.forwarddiff(stacked_references) do _stacked_references
         state_per_player = blocks(initial_state)
+        iterable_references = Iterators.Stateful(eachcol(_stacked_references))
         candidates_per_player = map(1:n_players) do ii
-            ref_ids = ref_indices_per_player[ii]
-            references = collect(eachcol(_stacked_references[:, ref_ids]))
+            n_references = size(trajectory_pairings, ii)
+            references = collect(Iterators.take(iterable_references, n_references))
             # TRAJ_i
             trajectory_generator = solver.trajectory_generators[ii]
             substate = state_per_player[ii]
-            map_threadable(
-                reference ->
-                    (; trajectory = trajectory_generator(substate, reference), reference),
+            res = map_threadable(
+                reference -> (; trajectory = trajectory_generator(substate, reference), reference),
                 references,
                 solver.execution_policy,
             )
+            res
         end
 
         # f
