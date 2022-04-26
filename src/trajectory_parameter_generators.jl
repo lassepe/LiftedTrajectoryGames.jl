@@ -41,7 +41,7 @@ end
 function (g::NNActionGenerator)(states)
     x = reduce(vcat, states)
     stacked_goals = g.model(x)
-    collect(eachcol(reshape(stacked_goals, :, g.n_actions)))
+    reshape(stacked_goals, :, g.n_actions)
 end
 
 function preprocess_gradients!(∇, reference_generator::NNActionGenerator, θ; kwargs...)
@@ -94,7 +94,7 @@ end
 @functor OnlineOptimizationActionGenerator (params,)
 
 function (g::OnlineOptimizationActionGenerator)(_)
-    [copy(c) for c in eachcol(g.params)]
+    copy(g.params)
 end
 
 function preprocess_gradients!(∇, ::OnlineOptimizationActionGenerator, θ; action_gradient_scaling)
