@@ -21,3 +21,6 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 [compat]
 ParameterSchedulers = "< 0.3.2"
 julia = "1.7"
+
+[preferences.ForwardDiff]
+default_chunk_threshold = 1024
