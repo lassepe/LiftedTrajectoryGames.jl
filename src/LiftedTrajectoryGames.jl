@@ -34,6 +34,7 @@ using LinearAlgebra: norm
 using ParameterSchedulers: ParameterSchedulers
 using ThreadsX: ThreadsX
 using ThreadsXChainRules: ThreadsXChainRules
+using ForwardDiff: ForwardDiff
 
 include("execution_policy.jl")
 include("trajectory_parameter_generators.jl")
