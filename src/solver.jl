@@ -111,7 +111,8 @@ function huber(x; δ = 1)
     end
 end
 
-function generate_trajectory_references(solver, initial_state, enable_caching_per_player;)
+# π
+function generate_trajectory_references(solver, initial_state; enable_caching_per_player)
     state_per_player = blocks(initial_state)
     n_players = length(state_per_player)
     references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
@@ -126,6 +127,89 @@ function generate_trajectory_references(solver, initial_state, enable_caching_pe
     references_per_player
 end
 
+# TRAJ
+function generate_trajectory_candidates(
+    solver,
+    initial_state,
+    stacked_references;
+    n_players,
+    trajectory_pairings,
+)
+    state_per_player = blocks(initial_state)
+    iterable_references = Iterators.Stateful(eachcol(stacked_references))
+
+    map(1:(n_players)) do ii
+        n_references = size(trajectory_pairings, ii)
+        references = collect(Iterators.take(iterable_references, n_references))
+        trajectory_generator = solver.trajectory_generators[ii]
+        substate = state_per_player[ii]
+        map_threadable(
+            reference -> (; trajectory = trajectory_generator(substate, reference), reference),
+            references,
+            solver.execution_policy,
+        )
+    end
+end
+
+function compute_costs(solver, candidates_per_player; trajectory_pairings, n_players, game)
+    cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
+        trajectories = (candidates_per_player[j][i[j]].trajectory for j in 1:n_players)
+
+        xs = map((t.xs for t in trajectories)...) do x...
+            mortar(collect(x))
+        end
+
+        us = map((t.us for t in trajectories)...) do u...
+            mortar(collect(u))
+        end
+
+        turn_length =
+            isnothing(solver.state_value_predictor) ? length(xs) :
+            solver.state_value_predictor.turn_length
+
+        trajectory_cost = solver.coupling_constraints_handler(
+            game,
+            xs[1:turn_length],
+            us[1:(turn_length - 1)],
+        )
+
+        if isnothing(solver.state_value_predictor)
+            cost_to_go = 0
+        else
+            # TODO: in the zero-sum case we could have a specialized state_value_predictor that
+            # exploits the symmetry in the state value.
+            cost_to_go = game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
+        end
+
+        trajectory_cost .+ cost_to_go
+    end
+
+    # transpose tensor of tuples to tuple of tensors
+    map(1:n_players) do player_i
+        map(cost_tensor) do pairing
+            pairing[player_i]
+        end
+    end
+end
+
+function compute_regularized_loss(
+    candidates_per_player,
+    game_value_per_player;
+    n_players,
+    planning_horizon,
+    dual_regularization_weights,
+)
+    dual_regularizations =
+        [
+            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i in 1:n_players
+        ] ./ planning_horizon
+
+    loss_per_player = [
+        game_value_per_player[i] + dual_regularization_weights[i] * dual_regularizations[i] for
+        i in 1:n_players
+    ]
+end
+
 # Make this compatable with many players
 function forward_pass(;
     solver,
@@ -136,76 +220,30 @@ function forward_pass(;
 )
     n_players = num_players(game)
     references_per_player =
-        generate_trajectory_references(solver, initial_state, enable_caching_per_player;)
+        generate_trajectory_references(solver, initial_state; enable_caching_per_player)
 
     stacked_references = reduce(hcat, references_per_player)
 
-    trajectory_pairings = Zygote.ignore() do
-        Iterators.product([axes(references_per_player[i], 2) for i in 1:n_players]...) |> collect
-    end
-
     local candidates_per_player, mixing_strategies, game_value_per_player
-    loss_per_player = Zygote.forwarddiff(stacked_references) do _stacked_references
-        state_per_player = blocks(initial_state)
-        iterable_references = Iterators.Stateful(eachcol(_stacked_references))
-        candidates_per_player = map(1:n_players) do ii
-            n_references = size(trajectory_pairings, ii)
-            references = collect(Iterators.take(iterable_references, n_references))
-            # TRAJ_i
-            trajectory_generator = solver.trajectory_generators[ii]
-            substate = state_per_player[ii]
-            map_threadable(
-                reference ->
-                    (; trajectory = trajectory_generator(substate, reference), reference),
-                references,
-                solver.execution_policy,
-            )
-        end
 
+    loss_per_player = Zygote.forwarddiff(stacked_references) do stacked_references
+        trajectory_pairings =
+            Iterators.product([axes(references, 2) for references in references_per_player]...) |> collect
+        candidates_per_player = generate_trajectory_candidates(
+            solver,
+            initial_state,
+            stacked_references;
+            n_players,
+            trajectory_pairings,
+        )
         # f
         # Evaluate the functions on all joint trajectories in the cost tensor
-        cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
-            trajectories = [candidates_per_player[j][i[j]].trajectory for j in 1:n_players]
+        costs_per_player =
+            compute_costs(solver, candidates_per_player; trajectory_pairings, n_players, game)
 
-            xs = map([t.xs for t in trajectories]...) do x...
-                mortar(collect(x))
-            end
-
-            us = map([t.us for t in trajectories]...) do u...
-                mortar(collect(u))
-            end
-
-            turn_length =
-                isnothing(solver.state_value_predictor) ? length(xs) :
-                solver.state_value_predictor.turn_length
-
-            trajectory_cost = solver.coupling_constraints_handler(
-                game,
-                xs[1:turn_length],
-                us[1:(turn_length - 1)],
-            )
-
-            if isnothing(solver.state_value_predictor)
-                cost_to_go = 0
-            else
-                # TODO: in the zero-sum case we could have a specialized state_value_predictor that
-                # exploits the symmetry in the state value.
-                cost_to_go =
-                    game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
-            end
-
-            trajectory_cost .+ cost_to_go
-        end
-
-        # transpose tensor of tuples to tuple of tensors
-        costs_per_player = map(1:n_players) do player_i
-            map(cost_tensor) do pairing
-                pairing[player_i]
-            end
-        end
-
-        # BMG
+        # q_i
         mixing_strategies = let
+            # BMG
             sol = FiniteGames.solve_mixed_nash(
                 solver.finite_game_solver,
                 costs_per_player;
@@ -216,17 +254,14 @@ function forward_pass(;
 
         # L
         game_value_per_player = FiniteGames.game_cost(mixing_strategies, costs_per_player)
-        dual_regularizations =
-            [
-                sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for
-                i in 1:n_players
-            ] ./ solver.planning_horizon
 
-        loss_per_player = [
-            game_value_per_player[i] +
-            solver.dual_regularization_weights[i] * dual_regularizations[i] for
-            i in 1:n_players
-        ]
+        compute_regularized_loss(
+            candidates_per_player,
+            game_value_per_player;
+            n_players,
+            solver.planning_horizon,
+            solver.dual_regularization_weights,
+        )
     end
 
     # strip of dual number types for downstream operation
