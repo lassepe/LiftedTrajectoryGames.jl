@@ -1,5 +1,5 @@
 using LiftedTrajectoryGames
-using Test
+using Test: @testset
 
 @testset "LiftedTrajectoryGames.jl" begin
     # Write your tests here.

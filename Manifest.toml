@@ -117,9 +117,9 @@ version = "0.5.10"
 
 [[deps.BlockArrays]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "28c497806c05326e7cadac0c916980d5a9c0e905"
+git-tree-sha1 = "8e11e3bbe77317fa19ea56ff1a935f15709ee40c"
 uuid = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
-version = "0.16.14"
+version = "0.16.15"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -253,9 +253,9 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.5.7"
 
 [[deps.DataAPI]]
-git-tree-sha1 = "cc70b17275652eb47bc9e5f81635981f13cea5c8"
+git-tree-sha1 = "fb5f5316dd3fd4c5e7c30a24d50643b73e37cd40"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
-version = "1.9.0"
+version = "1.10.0"
 
 [[deps.DataDeps]]
 deps = ["BinaryProvider", "HTTP", "Libdl", "Reexport", "SHA", "p7zip_jll"]
@@ -434,11 +434,9 @@ version = "0.4.2"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "6bb108aa1e4ff977c9384ee3d30de85edc7dfaf2"
-repo-rev = "feature/configurable_chunksize"
-repo-url = "https://github.com/lassepe/ForwardDiff.jl"
+git-tree-sha1 = "40d1546a45abd63490569695a86a2d93c2021e54"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.25"
+version = "0.10.26"
 
 [[deps.FreeType]]
 deps = ["CEnum", "FreeType2_jll"]
@@ -1360,9 +1358,9 @@ version = "0.1.1"
 
 [[deps.Static]]
 deps = ["IfElse"]
-git-tree-sha1 = "87e9954dfa33fd145694e42337bdd3d5b07021a6"
+git-tree-sha1 = "2114b1d8517764a8c4625a2e97f40640c7a301a7"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "0.6.0"
+version = "0.6.1"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
@@ -1441,10 +1439,10 @@ uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
 version = "0.1.1"
 
 [[deps.TensorGames]]
-deps = ["ChainRulesCore", "LinearAlgebra", "PATHSolver", "SparseArrays", "Test"]
-git-tree-sha1 = "ebacda861071984deb9bc2440944177fb217bb2c"
+deps = ["ChainRulesCore", "ForwardDiff", "LinearAlgebra", "PATHSolver", "SparseArrays", "Test"]
+git-tree-sha1 = "0994eb61abe097152683cbde1816c53d9af2ee39"
 uuid = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
-version = "0.3.4"
+version = "0.3.5"
 
 [[deps.TermInterface]]
 git-tree-sha1 = "7aa601f12708243987b88d1b453541a75e3d8c7a"
