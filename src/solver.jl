@@ -230,26 +230,28 @@ function forward_pass(;
     end
 
     # strip of dual number types for downstream operation
-    # TODO: strip this out into a function
-    info = let
-        (;
-            game_value_per_player = ForwardDiff.value.(game_value_per_player),
-            mixing_strategies = [ForwardDiff.value.(q) for q in mixing_strategies],
-            candidates_per_player = map(candidates_per_player) do candidates
-                map(candidates) do candidate
-                    (;
-                        reference = ForwardDiff.value.(candidate.reference),
-                        trajectory = (;
-                            xs = [ForwardDiff.value.(x) for x in candidate.trajectory.xs],
-                            us = [ForwardDiff.value.(u) for u in candidate.trajectory.us],
-                            λs = ForwardDiff.value.(candidate.trajectory.λs),
-                        ),
-                    )
-                end
-            end,
-        )
-    end
+    info = clean_info_tuple(; game_value_per_player, mixing_strategies, candidates_per_player)
+
     (; loss_per_player, info)
+end
+
+function clean_info_tuple(; game_value_per_player, mixing_strategies, candidates_per_player)
+    (;
+        game_value_per_player = ForwardDiff.value.(game_value_per_player),
+        mixing_strategies = [ForwardDiff.value.(q) for q in mixing_strategies],
+        candidates_per_player = map(candidates_per_player) do candidates
+            map(candidates) do candidate
+                (;
+                    reference = ForwardDiff.value.(candidate.reference),
+                    trajectory = (;
+                        xs = [ForwardDiff.value.(x) for x in candidate.trajectory.xs],
+                        us = [ForwardDiff.value.(u) for u in candidate.trajectory.us],
+                        λs = ForwardDiff.value.(candidate.trajectory.λs),
+                    ),
+                )
+            end
+        end,
+    )
 end
 
 function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
