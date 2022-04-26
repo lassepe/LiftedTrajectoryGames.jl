@@ -114,7 +114,7 @@ end
 function generate_trajectory_references(solver, initial_state, enable_caching_per_player;)
     state_per_player = blocks(initial_state)
     n_players = length(state_per_player)
-    candidates_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
+    references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
         cache = solver.trajectory_caches[ii]
         if !isnothing(cache) && enable_caching_per_player[ii]
             cache
@@ -123,7 +123,7 @@ function generate_trajectory_references(solver, initial_state, enable_caching_pe
             references = solver.trajectory_parameter_generators[ii](initial_state)
         end
     end
-    candidates_per_player
+    references_per_player
 end
 
 # Make this compatable with many players
@@ -145,7 +145,6 @@ function forward_pass(;
     end
 
     local candidates_per_player, mixing_strategies, game_value_per_player
-
     loss_per_player = Zygote.forwarddiff(stacked_references) do _stacked_references
         state_per_player = blocks(initial_state)
         iterable_references = Iterators.Stateful(eachcol(_stacked_references))
@@ -328,7 +327,8 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     if !(eltype(solver.trajectory_caches) <: Nothing)
         for ii in eachindex(info.candidates_per_player)
             if enable_caching_per_player[ii]
-                solver.trajectory_caches[ii] = info.candidates_per_player[ii]
+                solver.trajectory_caches[ii] =
+                    reduce(hcat, c.reference for c in info.candidates_per_player[ii])
             end
         end
     end
