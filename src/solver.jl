@@ -292,22 +292,32 @@ function clean_info_tuple(; game_value_per_player, mixing_strategies, candidates
     )
 end
 
-function cost_gradients(back, solver, n_players, ::GeneralSumCostStructure)
+function cost_gradients(back, solver, game)
+    cost_gradients(back, solver, game, game.cost.structure)
+end
+
+function cost_gradients(back, solver, game, ::GeneralSumCostStructure)
+    n_players = num_players(game)
     ∇L = map(1:n_players) do n
         if solver.enable_learning[n]
             loss_per_player = [i == n ? 1 : 0 for i in 1:n_players]
-            back((; loss_per_player, info = nothing))
+            back((; loss_per_player, info = nothing)) |> copy
         else
             nothing
         end
     end
 end
 
-function cost_gradients(back, solver, n_players, ::ZeroSumCostStructure)
-    n_players == 2 || error("Not implemented for N>2 players")
-    isnothing(solver.coupling_constraints_handler) || error("Not implemented")
-    ∇L_1 = back((; loss_per_player = (1, nothing), info = nothing))
-    ∇L = (∇L_1, -1 .* ∇L_2)
+function cost_gradients(back, solver, game, ::ZeroSumCostStructure)
+    num_players(game) == 2 || error("Not implemented for N>2 players")
+    isnothing(game.coupling_constraints) || error("Not implemented")
+    if !any(solver.enable_learning)
+        ∇L = (nothing, nothing)
+    else
+        ∇L_1 = back((; loss_per_player = [1, 0], info = nothing))
+        ∇L = (∇L_1, -1 .* ∇L_1)
+    end
+    ∇L
 end
 
 function update_state_value_predictor!(solver, state, game_value_per_player)
@@ -349,7 +359,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             ),
             trainable_parameters,
         )
-        ∇L_per_player = cost_gradients(back, solver, n_players, game.cost.structure)
+        ∇L_per_player = cost_gradients(back, solver, game)
     else
         forward_pass_result = forward_pass(;
             solver,
