@@ -138,7 +138,7 @@ function generate_trajectory_candidates(
     state_per_player = blocks(initial_state)
     iterable_references = Iterators.Stateful(eachcol(stacked_references))
 
-    map(1:(n_players)) do ii
+    map(1:n_players) do ii
         n_references = size(trajectory_pairings, ii)
         references = collect(Iterators.take(iterable_references, n_references))
         trajectory_generator = solver.trajectory_generators[ii]
