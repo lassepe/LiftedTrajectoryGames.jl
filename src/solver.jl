@@ -226,7 +226,10 @@ function forward_pass(;
 
     local candidates_per_player, mixing_strategies, game_value_per_player
 
-    loss_per_player = Zygote.forwarddiff(stacked_references) do stacked_references
+    loss_per_player = Zygote.forwarddiff(
+        stacked_references;
+        chunk_threshold = length(stacked_references),
+    ) do stacked_references
         trajectory_pairings =
             Iterators.product([axes(references, 2) for references in references_per_player]...) |> collect
         candidates_per_player = generate_trajectory_candidates(
