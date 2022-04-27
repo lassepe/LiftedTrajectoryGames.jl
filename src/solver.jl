@@ -310,14 +310,14 @@ end
 
 function cost_gradients(back, solver, game, ::ZeroSumCostStructure)
     num_players(game) == 2 || error("Not implemented for N>2 players")
-    isnothing(game.coupling_constraints) || error("Not implemented")
-    if !any(solver.enable_learning)
-        ∇L = (nothing, nothing)
-    else
-        ∇L_1 = back((; loss_per_player = [1, 0], info = nothing))
-        ∇L = (∇L_1, -1 .* ∇L_1)
+    if isnothing(game.coupling_constraints)
+        return cost_gradients(back, solver, game, GeneralSumCostStructure())
     end
-    ∇L
+    if !any(solver.enable_learning)
+        return ∇L = (nothing, nothing)
+    end
+    ∇L_1 = back((; loss_per_player = [1, 0], info = nothing))
+    ∇L = (∇L_1, -1 .* ∇L_1)
 end
 
 function update_state_value_predictor!(solver, state, game_value_per_player)
