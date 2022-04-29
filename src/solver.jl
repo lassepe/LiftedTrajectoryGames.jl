@@ -23,7 +23,7 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     optimal cost-to-go's for each player."
     state_value_predictor::T9
     "A type providing information about the context, which is passed to the reference generators"
-    context_information::T10
+    context_state::T10
 end
 
 """
@@ -47,7 +47,7 @@ function LiftedTrajectoryGameSolver(
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
-    context_information = nothing,
+    context_state = Float64[],
 )
     # setup a trajectory generator for every player
     trajectory_generators =
@@ -73,11 +73,7 @@ function LiftedTrajectoryGameSolver(
     n_player_actions,
     initial_player_parameters,
     learning_rate
-        input_dimension = state_dim(game.dynamics) + if isnothing(context_information)
-            0
-        else
-            state_dim(context_information)
-        end
+        input_dimension = state_dim(game.dynamics) + length(context_state)
         constructor(;
             input_dimension,
             n_params = param_dim(trajectory_generator),
@@ -100,7 +96,7 @@ function LiftedTrajectoryGameSolver(
         enable_learning,
         execution_policy,
         state_value_predictor,
-        context_information,
+        context_state,
     )
 end
 
@@ -114,11 +110,7 @@ end
 
 # π
 function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
-    input = if isnothing(solver.context_information)
-        [initial_state;]
-    else
-        [initial_state; solver.context_information.state]
-    end
+    input = [initial_state; solver.context_state]
     references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
         solver.trajectory_parameter_generators[ii](input)
     end
@@ -168,8 +160,8 @@ function compute_costs(solver, candidates_per_player; trajectory_pairings, n_pla
         trajectory_cost = solver.coupling_constraints_handler(
             game,
             xs[1:turn_length],
-            us[1:(turn_length - 1)];
-            solver.context_information,
+            us[1:(turn_length - 1)],
+            solver.context_state,
         )
 
         if isnothing(solver.state_value_predictor)
