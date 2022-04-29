@@ -126,23 +126,28 @@ function generate_trajectory_candidates(
     trajectory_pairings,
 )
     state_per_player = blocks(initial_state)
-    iterable_references = Iterators.Stateful(eachcol(stacked_references))
+    references_per_player = let
+        iterable_references = Iterators.Stateful(eachcol(stacked_references))
+        map(1:n_players) do ii
+            n_references = size(trajectory_pairings, ii)
+            collect(Iterators.take(iterable_references, n_references))
+        end
+    end
 
-    map(1:n_players) do ii
+    map_threadable(1:n_players, solver.execution_policy) do ii
         n_references = size(trajectory_pairings, ii)
-        references = collect(Iterators.take(iterable_references, n_references))
+        references = references_per_player[ii]
         trajectory_generator = solver.trajectory_generators[ii]
         substate = state_per_player[ii]
-        map_threadable(
+        map(
             reference -> (; trajectory = trajectory_generator(substate, reference), reference),
             references,
-            solver.execution_policy,
         )
     end
 end
 
 function compute_costs(solver, candidates_per_player; trajectory_pairings, n_players, game)
-    cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
+    cost_tensor = map(trajectory_pairings) do i
         trajectories = (candidates_per_player[j][i[j]].trajectory for j in 1:n_players)
 
         xs = map((t.xs for t in trajectories)...) do x...
