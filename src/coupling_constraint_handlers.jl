@@ -8,19 +8,23 @@ function (constraint_handler::LangrangianCouplingConstraintHandler)(
     us,
     context_state,
 )
-    if isnothing(game.coupling_constraints)
-        constraint_penalty = 0
-    else
-        constraint_penalty = sum(game.coupling_constraints(xs, us)) do g
-            if g >= 0
-                # the constraint is already satsified, no penalty
-                zero(g)
-            else
-                -g * constraint_handler.violation_penalty
-            end
-        end
-    end
+    costs = game.cost(xs, us, context_state)
 
-    # lagrangian approximation to enforce coupling constraints
-    game.cost(xs, us, context_state) .+ constraint_penalty
+    if isnothing(game.coupling_constraints)
+        costs
+    else
+        constraint_penalties = [
+            sum(coupling_constraint(xs, us)) do g
+                if g >= 0
+                    # the constraint is already satsified, no penalty
+                    zero(g)
+                else
+                    -g * constraint_handler.violation_penalty
+                end
+            end for coupling_constraint in game.coupling_constraints
+        ]
+
+        # lagrangian approximation to enforce coupling constraints
+        costs + constraint_penalties
+    end
 end
