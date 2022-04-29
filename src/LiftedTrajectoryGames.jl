@@ -2,7 +2,6 @@ __precompile__(false)
 
 module LiftedTrajectoryGames
 
-using FiniteGames: FiniteGames
 using DifferentiableTrajectoryGenerators:
     DifferentiableTrajectoryGenerator,
     ParametricOptimizationProblem,
@@ -35,6 +34,7 @@ using ParameterSchedulers: ParameterSchedulers
 using ThreadsX: ThreadsX
 using ThreadsXChainRules: ThreadsXChainRules
 using ForwardDiff: ForwardDiff
+using TensorGames: TensorGames
 
 include("execution_policy.jl")
 include("trajectory_parameter_generators.jl")

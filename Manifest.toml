@@ -402,12 +402,6 @@ git-tree-sha1 = "246621d23d1f43e3b9c368bf3b72b2331a27c286"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
 version = "0.13.2"
 
-[[deps.FiniteGames]]
-deps = ["ChainRulesCore", "GeometryBasics", "LinearAlgebra", "OSQP", "SparseArrays", "StatsBase", "Symbolics", "TensorGames", "Tullio"]
-path = "../FiniteGames"
-uuid = "02142a96-bdca-44e0-a5fe-3e991313ea5a"
-version = "0.1.0-dev"
-
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
 git-tree-sha1 = "335bfdceacc84c5cdf16aadc768aa5ddfc5383cc"
@@ -1500,12 +1494,6 @@ deps = ["Test"]
 git-tree-sha1 = "8d0d7a3fe2f30d6a7f833a5f19f7c7a5b396eae6"
 uuid = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
 version = "0.3.0"
-
-[[deps.Tullio]]
-deps = ["ChainRulesCore", "DiffRules", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "859e2e9a7222553a0c052e423557cedb49376da9"
-uuid = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
-version = "0.3.4"
 
 [[deps.URIs]]
 git-tree-sha1 = "97bbe755a53fe859669cd907f2d96aee8d2c1355"

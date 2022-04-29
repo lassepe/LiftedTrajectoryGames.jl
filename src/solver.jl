@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -14,18 +14,16 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     rng::T5
     "How much affect the dual regularization has on the costs"
     dual_regularization_weights::T6
-    "The solver for the high-level finite game"
-    finite_game_solver::T7
     "A flag that can be set to enable/disable learning"
-    enable_learning::T8
+    enable_learning::T7
     "A vector of cached trajectories for each player"
-    trajectory_caches::T9
+    trajectory_caches::T8
     "An AbstractExecutionPolicy that determines whether the solve is computed in parallel or
     sequentially."
-    execution_policy::T10
+    execution_policy::T9
     "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
     optimal cost-to-go's for each player."
-    state_value_predictor::T11
+    state_value_predictor::T10
 end
 
 """
@@ -45,7 +43,6 @@ function LiftedTrajectoryGameSolver(
     coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     trajectory_solver = QPSolver(),
     dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
-    finite_game_solver = FiniteGames.TensorGameSolver(),
     enable_learning = [true for _ in 1:num_players(game)],
     trajectory_caches = [nothing for _ in 1:num_players(game)],
     gradient_clipping_threshold = nothing,
@@ -95,7 +92,6 @@ function LiftedTrajectoryGameSolver(
         planning_horizon,
         rng,
         dual_regularization_weights,
-        finite_game_solver,
         enable_learning,
         trajectory_caches,
         execution_policy,
@@ -241,22 +237,16 @@ function forward_pass(;
         )
         # f
         # Evaluate the functions on all joint trajectories in the cost tensor
-        costs_per_player =
+        cost_tensors_per_player =
             compute_costs(solver, candidates_per_player; trajectory_pairings, n_players, game)
-
-        # q_i
-        mixing_strategies = let
-            # BMG
-            sol = FiniteGames.solve_mixed_nash(
-                solver.finite_game_solver,
-                costs_per_player;
-                ϵ = min_action_probability,
-            )
-            sol.x
-        end
-
+        # Compute the mixing strategies, q_i, via a finite game solve;
+        mixing_strategies =
+            TensorGames.compute_equilibrium(cost_tensors_per_player; ϵ = min_action_probability).x
         # L
-        game_value_per_player = FiniteGames.game_cost(mixing_strategies, costs_per_player)
+        game_value_per_player = [
+            TensorGames.expected_cost(mixing_strategies, cost_tensor) for
+            cost_tensor in cost_tensors_per_player
+        ]
 
         compute_regularized_loss(
             candidates_per_player,
