@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9}
     "A collection of action generators, one for each player in the game."
     trajectory_parameter_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -16,14 +16,12 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     dual_regularization_weights::T6
     "A flag that can be set to enable/disable learning"
     enable_learning::T7
-    "A vector of cached trajectories for each player"
-    trajectory_caches::T8
     "An AbstractExecutionPolicy that determines whether the solve is computed in parallel or
     sequentially."
-    execution_policy::T9
+    execution_policy::T8
     "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
     optimal cost-to-go's for each player."
-    state_value_predictor::T10
+    state_value_predictor::T9
 end
 
 """
@@ -44,7 +42,6 @@ function LiftedTrajectoryGameSolver(
     trajectory_solver = QPSolver(),
     dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
     enable_learning = [true for _ in 1:num_players(game)],
-    trajectory_caches = [nothing for _ in 1:num_players(game)],
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
@@ -93,7 +90,6 @@ function LiftedTrajectoryGameSolver(
         rng,
         dual_regularization_weights,
         enable_learning,
-        trajectory_caches,
         execution_policy,
         state_value_predictor,
     )
@@ -112,13 +108,7 @@ function generate_trajectory_references(solver, initial_state; enable_caching_pe
     state_per_player = blocks(initial_state)
     n_players = length(state_per_player)
     references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
-        cache = solver.trajectory_caches[ii]
-        if !isnothing(cache) && enable_caching_per_player[ii]
-            cache
-        else
-            # π_θi
-            references = solver.trajectory_parameter_generators[ii](initial_state)
-        end
+        solver.trajectory_parameter_generators[ii](initial_state)
     end
     references_per_player
 end
@@ -362,16 +352,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     (; loss_per_player, info) = forward_pass_result
-
-    # Store computed trajectories in caches if caching is enabled
-    if !(eltype(solver.trajectory_caches) <: Nothing)
-        for ii in eachindex(info.candidates_per_player)
-            if enable_caching_per_player[ii]
-                solver.trajectory_caches[ii] =
-                    reduce(hcat, c.reference for c in info.candidates_per_player[ii])
-            end
-        end
-    end
 
     # Update θ_i if learning is enabled for player i
     if !isnothing(solver.enable_learning)
