@@ -132,7 +132,6 @@ function generate_trajectory_candidates(
     end
 
     map_threadable(1:n_players, solver.execution_policy) do ii
-        n_references = size(trajectory_pairings, ii)
         references = references_per_player[ii]
         trajectory_generator = solver.trajectory_generators[ii]
         substate = state_per_player[ii]
