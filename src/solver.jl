@@ -111,10 +111,7 @@ end
 # π
 function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
     input = [initial_state; solver.context_state]
-    references_per_player = map(1:n_players) do ii
-        solver.trajectory_reference_generators[ii](input)
-    end
-    references_per_player
+    map(ii -> solver.trajectory_reference_generators[ii](input), 1:n_players)
 end
 
 # TRAJ
