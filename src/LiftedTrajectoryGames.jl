@@ -37,7 +37,7 @@ using ForwardDiff: ForwardDiff
 using TensorGames: TensorGames
 
 include("execution_policy.jl")
-include("trajectory_parameter_generators.jl")
+include("trajectory_reference_generators.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")
 include("coupling_constraint_handlers.jl")

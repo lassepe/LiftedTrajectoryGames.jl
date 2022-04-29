@@ -2,7 +2,12 @@ struct LangrangianCouplingConstraintHandler
     violation_penalty::Float64
 end
 
-function (constraint_handler::LangrangianCouplingConstraintHandler)(game, xs, us)
+function (constraint_handler::LangrangianCouplingConstraintHandler)(
+    game,
+    xs,
+    us;
+    context_information = nothing,
+)
     if isnothing(game.coupling_constraints)
         constraint_penalty = 0
     else
@@ -17,5 +22,5 @@ function (constraint_handler::LangrangianCouplingConstraintHandler)(game, xs, us
     end
 
     # lagrangian approximation to enforce coupling constraints
-    game.cost(xs, us) .+ constraint_penalty
+    game.cost(xs, us, context_information) .+ constraint_penalty
 end

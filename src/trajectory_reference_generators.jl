@@ -9,7 +9,7 @@ end
 @functor NNActionGenerator (model,)
 
 function NNActionGenerator(;
-    state_dim,
+    input_dimension,
     n_params,
     params_abs_max,
     n_actions,
@@ -29,7 +29,7 @@ function NNActionGenerator(;
         @assert false
     end
     model = Chain(
-        Dense(state_dim, hidden_dim, tanh; init),
+        Dense(input_dimension, hidden_dim, tanh; init),
         (Dense(hidden_dim, hidden_dim, tanh; init) for _ in 1:(n_hidden_layers - 1))...,
         Dense(hidden_dim, n_params * n_actions, output_activation; init),
         x -> params_abs_max .* x,
@@ -38,8 +38,7 @@ function NNActionGenerator(;
     NNActionGenerator(model, optimizer, n_actions, gradient_clipping_threshold)
 end
 
-function (g::NNActionGenerator)(states)
-    x = reduce(vcat, states)
+function (g::NNActionGenerator)(x)
     stacked_goals = g.model(x)
     reshape(stacked_goals, :, g.n_actions)
 end
@@ -68,7 +67,7 @@ struct OnlineOptimizationActionGenerator{T<:AbstractMatrix,O}
 end
 
 function OnlineOptimizationActionGenerator(;
-    state_dim = nothing,
+    input_dimension = nothing,
     n_actions,
     n_params,
     params_abs_max,

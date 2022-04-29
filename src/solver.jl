@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "A collection of action generators, one for each player in the game."
     trajectory_reference_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -22,6 +22,8 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9}
     "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
     optimal cost-to-go's for each player."
     state_value_predictor::T9
+    "A type providing information about the context, which is passed to the reference generators"
+    context_information::T10
 end
 
 """
@@ -45,6 +47,7 @@ function LiftedTrajectoryGameSolver(
     gradient_clipping_threshold = nothing,
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
+    context_information = nothing,
 )
     # setup a trajectory generator for every player
     trajectory_generators =
@@ -70,8 +73,13 @@ function LiftedTrajectoryGameSolver(
     n_player_actions,
     initial_player_parameters,
     learning_rate
+        input_dimension = state_dim(game.dynamics) + if isnothing(context_information)
+            0
+        else
+            state_dim(context_information)
+        end
         constructor(;
-            state_dim = state_dim(game.dynamics),
+            input_dimension,
             n_params = param_dim(trajectory_generator),
             n_actions = n_player_actions,
             trajectory_generator.problem.parameterization.params_abs_max,
@@ -92,6 +100,7 @@ function LiftedTrajectoryGameSolver(
         enable_learning,
         execution_policy,
         state_value_predictor,
+        context_information,
     )
 end
 
@@ -104,11 +113,14 @@ function huber(x; δ = 1)
 end
 
 # π
-function generate_trajectory_references(solver, initial_state; enable_caching_per_player)
-    state_per_player = blocks(initial_state)
-    n_players = length(state_per_player)
+function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
+    input = if isnothing(solver.context_information)
+        [initial_state;]
+    else
+        [initial_state; solver.context_information.state]
+    end
     references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
-        solver.trajectory_parameter_generators[ii](initial_state)
+        solver.trajectory_parameter_generators[ii](input)
     end
     references_per_player
 end
@@ -156,7 +168,8 @@ function compute_costs(solver, candidates_per_player; trajectory_pairings, n_pla
         trajectory_cost = solver.coupling_constraints_handler(
             game,
             xs[1:turn_length],
-            us[1:(turn_length - 1)],
+            us[1:(turn_length - 1)];
+            solver.context_information,
         )
 
         if isnothing(solver.state_value_predictor)
@@ -206,7 +219,7 @@ function forward_pass(;
 )
     n_players = num_players(game)
     references_per_player =
-        generate_trajectory_references(solver, initial_state; enable_caching_per_player)
+        generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
 
     stacked_references = reduce(hcat, references_per_player)
 
