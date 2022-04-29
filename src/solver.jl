@@ -112,7 +112,7 @@ end
 function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
     input = [initial_state; solver.context_state]
     references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
-        solver.trajectory_parameter_generators[ii](input)
+        solver.trajectory_reference_generators[ii](input)
     end
     references_per_player
 end
@@ -360,7 +360,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 
     # Update θ_i if learning is enabled for player i
     if !isnothing(solver.enable_learning)
-        for (parameter_generator, weights, enable_player_learning, ∇L) in zip(
+        for (reference_generator, weights, enable_player_learning, ∇L) in zip(
             solver.trajectory_reference_generators,
             info.mixing_strategies,
             solver.enable_learning,
@@ -371,7 +371,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
             end
             action_gradient_scaling = scale_action_gradients ? 1 ./ weights : ones(size(weights))
             update_parameters!(
-                parameter_generator,
+                reference_generator,
                 ∇L;
                 noise = parameter_noise,
                 solver.rng,
