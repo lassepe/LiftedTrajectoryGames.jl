@@ -1,6 +1,6 @@
 struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9}
     "A collection of action generators, one for each player in the game."
-    trajectory_parameter_generators::T1
+    trajectory_reference_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
     trajectory_generators::T2
     "A callable `(game, xs, us) -> cs` which maps the joint state-input trajectory `(xs, us)` to a
@@ -59,7 +59,7 @@ function LiftedTrajectoryGameSolver(
                 trajectory_solver,
             )
         end
-    trajectory_parameter_generators = map(
+    trajectory_reference_generators = map(
         reference_generator_constructors,
         trajectory_generators,
         n_actions,
@@ -83,7 +83,7 @@ function LiftedTrajectoryGameSolver(
     end
 
     LiftedTrajectoryGameSolver(
-        trajectory_parameter_generators,
+        trajectory_reference_generators,
         trajectory_generators,
         coupling_constraints_handler,
         planning_horizon,
@@ -328,7 +328,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
 )
     n_players = num_players(game)
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
-        trainable_parameters = Flux.params(solver.trajectory_parameter_generators...)
+        trainable_parameters = Flux.params(solver.trajectory_reference_generators...)
         forward_pass_result, back = Zygote.pullback(
             () -> forward_pass(;
                 solver,
@@ -356,7 +356,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     # Update θ_i if learning is enabled for player i
     if !isnothing(solver.enable_learning)
         for (parameter_generator, weights, enable_player_learning, ∇L) in zip(
-            solver.trajectory_parameter_generators,
+            solver.trajectory_reference_generators,
             info.mixing_strategies,
             solver.enable_learning,
             ∇L_per_player,
@@ -389,7 +389,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         else
             sum(
                 norm(something(∇L[p], 0.0)) for
-                p in Flux.params(solver.trajectory_parameter_generators...)
+                p in Flux.params(solver.trajectory_reference_generators...)
             )
         end
         LiftedTrajectoryStrategy(;
