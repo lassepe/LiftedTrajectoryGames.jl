@@ -111,7 +111,7 @@ end
 # π
 function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
     input = [initial_state; solver.context_state]
-    references_per_player = map_threadable(1:n_players, solver.execution_policy) do ii
+    references_per_player = map(1:n_players) do ii
         solver.trajectory_reference_generators[ii](input)
     end
     references_per_player
@@ -147,7 +147,7 @@ function generate_trajectory_candidates(
 end
 
 function compute_costs(solver, candidates_per_player; trajectory_pairings, n_players, game)
-    cost_tensor = map(trajectory_pairings) do i
+    cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
         trajectories = (candidates_per_player[j][i[j]].trajectory for j in 1:n_players)
 
         xs = map((t.xs for t in trajectories)...) do x...
