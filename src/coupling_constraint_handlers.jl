@@ -14,14 +14,14 @@ function (constraint_handler::LangrangianCouplingConstraintHandler)(
         costs
     else
         constraint_penalties = [
-            sum(coupling_constraint(xs, us)) do g
+            sum(coupling_constraints_per_player(xs, us)) do g
                 if g >= 0
                     # the constraint is already satsified, no penalty
                     zero(g)
                 else
                     -g * constraint_handler.violation_penalty
                 end
-            end for coupling_constraint in game.coupling_constraints
+            end for coupling_constraints_per_player in game.coupling_constraints
         ]
 
         # lagrangian approximation to enforce coupling constraints
