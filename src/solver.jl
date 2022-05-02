@@ -48,6 +48,7 @@ function LiftedTrajectoryGameSolver(
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
     context_state = Float64[],
+    enforce_environmental_constraints = true,
 )
     # setup a trajectory generator for every player
     trajectory_generators =
@@ -56,7 +57,7 @@ function LiftedTrajectoryGameSolver(
                 ParametricOptimizationProblem(
                     parameterization,
                     subdynamics,
-                    game.env,
+                    if enforce_environmental_constraints game.env else nothing end,
                     planning_horizon,
                 ),
                 trajectory_solver,
