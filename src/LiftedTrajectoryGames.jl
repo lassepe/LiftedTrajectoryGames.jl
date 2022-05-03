@@ -31,12 +31,15 @@ using Random: Random
 using Zygote: Zygote
 using LinearAlgebra: norm
 using ParameterSchedulers: ParameterSchedulers
-using ThreadsX: ThreadsX
-using ThreadsXChainRules: ThreadsXChainRules
 using ForwardDiff: ForwardDiff
 using TensorGames: TensorGames
 
+# multi-threading extensions
+using ThreadsX: ThreadsX
+using ChainRulesCore: ChainRulesCore
+include("threadsx_chainrules_piracy.jl")
 include("execution_policy.jl")
+
 include("trajectory_reference_generators.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")

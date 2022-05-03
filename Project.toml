@@ -4,6 +4,7 @@ authors = ["lassepe <lasse.peters@mailbox.org> and contributors"]
 version = "0.1.0"
 
 [deps]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 DifferentiableTrajectoryGenerators = "86fad55d-71c6-41a1-96ed-88d107dcd2ba"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -14,7 +15,6 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 TensorGames = "dad72d94-522a-402a-84d3-a630e8ffd4d6"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
-ThreadsXChainRules = "5107cb42-c55a-4842-8de6-96a2e4bae273"
 TrajectoryGamesBase = "ac1ac542-73eb-4349-ae1b-660ab3609574"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 

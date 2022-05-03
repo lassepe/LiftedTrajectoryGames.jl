@@ -1,2 +1,4 @@
 [deps]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
