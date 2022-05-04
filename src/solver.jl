@@ -58,7 +58,7 @@ function LiftedTrajectoryGameSolver(
         game.dynamics.subsystems,
         trajectory_parameterizations,
     ) do constructor, subdynamics, parameterization
-        constructor(game, subdynamics, parameterization, planning_horizon)
+        constructor(game.env, subdynamics, parameterization, planning_horizon)
     end
     trajectory_reference_generators = map(
         reference_generator_constructors,
@@ -133,16 +133,14 @@ function generate_trajectory_candidates(
         references = references_per_player[player_i]
         trajectory_generator = solver.trajectory_generators[player_i]
         substate = state_per_player[player_i]
-        map(
-            reference -> (; trajectory = trajectory_generator(substate, reference), reference),
-            references,
-        )
+        trajectory = map(reference -> trajectory_generator(substate, reference), references)
+        trajectory
     end
 end
 
 function compute_costs(solver, candidates_per_player; trajectory_pairings, n_players, game)
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
-        trajectories = (candidates_per_player[j][i[j]].trajectory for j in 1:n_players)
+        trajectories = (candidates_per_player[j][i[j]] for j in 1:n_players)
 
         xs = map((t.xs for t in trajectories)...) do x...
             mortar(collect(x))
@@ -191,7 +189,7 @@ function compute_regularized_loss(
 )
     dual_regularizations =
         [
-            sum(sum(huber.(c.trajectory.λs)) for c in candidates_per_player[i]) for i in 1:n_players
+            sum(sum(huber.(c.λs)) for c in candidates_per_player[i]) for i in 1:n_players
         ] ./ planning_horizon
 
     loss_per_player = [
@@ -258,18 +256,17 @@ function forward_pass(;
 end
 
 function clean_info_tuple(; game_value_per_player, mixing_strategies, candidates_per_player)
+# TODO integrate references again
     (;
         game_value_per_player = ForwardDiff.value.(game_value_per_player),
         mixing_strategies = [ForwardDiff.value.(q) for q in mixing_strategies],
         candidates_per_player = map(candidates_per_player) do candidates
             map(candidates) do candidate
                 (;
-                    reference = ForwardDiff.value.(candidate.reference),
-                    trajectory = (;
-                        xs = [ForwardDiff.value.(x) for x in candidate.trajectory.xs],
-                        us = [ForwardDiff.value.(u) for u in candidate.trajectory.us],
-                        λs = ForwardDiff.value.(candidate.trajectory.λs),
-                    ),
+                        xs = [ForwardDiff.value.(x) for x in candidate.xs],
+                        us = [ForwardDiff.value.(u) for u in candidate.us],
+                        λs = ForwardDiff.value.(candidate.λs),
+                        reference_xs = [ForwardDiff.value.(x) for x in candidate.reference_xs],
                 )
             end
         end,
@@ -397,9 +394,9 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
         LiftedTrajectoryStrategy(;
             player_i,
-            trajectory_candidates = [c.trajectory for c in candidates],
+            trajectory_candidates = candidates,
             weights,
-            info = (; loss, ∇L_norm, trajectory_references = [c.reference for c in candidates]),
+            info = (; loss, ∇L_norm),
             solver.rng,
         )
     end

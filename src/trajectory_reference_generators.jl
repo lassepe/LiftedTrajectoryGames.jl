@@ -17,7 +17,7 @@ function NNActionGenerator(;
     initial_parameters,
     params_abs_max = 1.0,
     hidden_dim = 100,
-    n_hidden_layers = 2,
+    n_hidden_layers = 4,
     output_activation = tanh,
     gradient_clipping_threshold = nothing,
 )
