@@ -24,6 +24,16 @@ function (strategy::LiftedTrajectoryStrategy)(state, t)
 
     (; xs, us) = strategy.trajectory_candidates[strategy.action_index[]]
 
+    if xs[t] != state[Block(strategy.player_i)]
+        throw(
+            ArgumentError("""
+                          This strategy is only valid for states on its trajectory but has been \
+                          called for an off trajectory state instead which will likely not \
+                          produce meaningful results.
+                          """),
+        )
+    end
+
     PrecomputedAction(xs[t], us[t], xs[t + 1])
 end
 

@@ -266,7 +266,7 @@ function clean_info_tuple(; game_value_per_player, mixing_strategies, candidates
                         xs = [ForwardDiff.value.(x) for x in candidate.xs],
                         us = [ForwardDiff.value.(u) for u in candidate.us],
                         λs = ForwardDiff.value.(candidate.λs),
-                        reference_xs = [ForwardDiff.value.(x) for x in candidate.reference_xs],
+                        #reference_xs = [ForwardDiff.value.(x) for x in candidate.reference_xs],
                 )
             end
         end,
