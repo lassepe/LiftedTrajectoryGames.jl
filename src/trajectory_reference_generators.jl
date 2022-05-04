@@ -10,7 +10,7 @@ end
 
 function NNActionGenerator(;
     input_dimension,
-    n_params,
+    parameter_dimension,
     n_actions,
     learning_rate,
     rng,
@@ -31,7 +31,7 @@ function NNActionGenerator(;
     model = Chain(
         Dense(input_dimension, hidden_dim, tanh; init),
         (Dense(hidden_dim, hidden_dim, tanh; init) for _ in 1:(n_hidden_layers - 1))...,
-        Dense(hidden_dim, n_params * n_actions, output_activation; init),
+        Dense(hidden_dim, parameter_dimension * n_actions, output_activation; init),
         x -> params_abs_max .* x,
     )
     optimizer = Optimise.Descent(learning_rate)
@@ -69,7 +69,7 @@ end
 function OnlineOptimizationActionGenerator(;
     input_dimension = nothing,
     n_actions,
-    n_params,
+    parameter_dimension,
     params_abs_max,
     learning_rate,
     rng,
@@ -78,11 +78,11 @@ function OnlineOptimizationActionGenerator(;
     gradient_clipping_threshold::Nothing = nothing,
 )
     params = if isnothing(initial_parameters)
-        (rand(rng, n_params, n_actions) .- 0.5) .* (2params_abs_max)
+        (rand(rng, parameter_dimension, n_actions) .- 0.5) .* (2params_abs_max)
     else
         initial_parameters
     end
-    @assert length(params) == n_params * n_actions
+    @assert length(params) == parameter_dimension * n_actions
     optimizer = ParameterSchedulers.Scheduler(
         ParameterSchedulers.Exp(; λ = learning_rate, γ = 0.995),
         Optimise.Descent(),

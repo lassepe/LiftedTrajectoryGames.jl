@@ -74,7 +74,7 @@ function LiftedTrajectoryGameSolver(
         input_dimension = state_dim(game.dynamics) + length(context_state)
         constructor(;
             input_dimension,
-            n_params = param_dim(trajectory_generator),
+            parameter_dimension = parameter_dimension(trajectory_generator),
             n_actions = n_player_actions,
             learning_rate,
             rng,
