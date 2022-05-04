@@ -50,7 +50,6 @@ function LiftedTrajectoryGameSolver(
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
     context_state = Float64[],
-    enforce_environmental_constraints = true,
 )
     # setup a trajectory generator for every player
     trajectory_generators = map(
@@ -133,8 +132,7 @@ function generate_trajectory_candidates(
         references = references_per_player[player_i]
         trajectory_generator = solver.trajectory_generators[player_i]
         substate = state_per_player[player_i]
-        trajectory = map(reference -> trajectory_generator(substate, reference), references)
-        trajectory
+        map(reference -> trajectory_generator(substate, reference), references)
     end
 end
 
@@ -188,9 +186,7 @@ function compute_regularized_loss(
     dual_regularization_weights,
 )
     dual_regularizations =
-        [
-            sum(sum(huber.(c.λs)) for c in candidates_per_player[i]) for i in 1:n_players
-        ] ./ planning_horizon
+        [sum(sum(huber.(c.λs)) for c in candidates_per_player[i]) for i in 1:n_players] ./ planning_horizon
 
     loss_per_player = [
         game_value_per_player[i] + dual_regularization_weights[i] * dual_regularizations[i] for
@@ -256,17 +252,16 @@ function forward_pass(;
 end
 
 function clean_info_tuple(; game_value_per_player, mixing_strategies, candidates_per_player)
-# TODO integrate references again
+    # TODO integrate references again
     (;
         game_value_per_player = ForwardDiff.value.(game_value_per_player),
         mixing_strategies = [ForwardDiff.value.(q) for q in mixing_strategies],
         candidates_per_player = map(candidates_per_player) do candidates
             map(candidates) do candidate
                 (;
-                        xs = [ForwardDiff.value.(x) for x in candidate.xs],
-                        us = [ForwardDiff.value.(u) for u in candidate.us],
-                        λs = ForwardDiff.value.(candidate.λs),
-                        #reference_xs = [ForwardDiff.value.(x) for x in candidate.reference_xs],
+                    xs = [ForwardDiff.value.(x) for x in candidate.xs],
+                    us = [ForwardDiff.value.(u) for u in candidate.us],
+                    λs = ForwardDiff.value.(candidate.λs),
                 )
             end
         end,
