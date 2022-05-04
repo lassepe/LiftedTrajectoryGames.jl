@@ -36,12 +36,14 @@ function LiftedTrajectoryGameSolver(
     initial_parameters = [:random for _ in 1:num_players(game)],
     n_actions = [2 for _ in 1:num_players(game)],
     reference_generator_constructors = [NNActionGenerator for _ in 1:num_players(game)],
+    trajectory_generator_constructors = [
+        DifferentiableTrajectoryGenerator for _ in 1:num_players(game)
+    ],
     learning_rates = [0.05 for _ in 1:num_players(game)],
     trajectory_parameterizations = [
-        InputReferenceParameterization(; α = 3, params_abs_max = 10) for _ in 1:num_players(game)
+        InputReferenceParameterization(; α = 3) for _ in 1:num_players(game)
     ],
     coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
-    trajectory_solver = QPSolver(),
     dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
     enable_learning = [true for _ in 1:num_players(game)],
     gradient_clipping_threshold = nothing,
@@ -51,18 +53,13 @@ function LiftedTrajectoryGameSolver(
     enforce_environmental_constraints = true,
 )
     # setup a trajectory generator for every player
-    trajectory_generators =
-        map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
-            DifferentiableTrajectoryGenerator(
-                ParametricOptimizationProblem(
-                    parameterization,
-                    subdynamics,
-                    if enforce_environmental_constraints game.env else nothing end,
-                    planning_horizon,
-                ),
-                trajectory_solver,
-            )
-        end
+    trajectory_generators = map(
+        trajectory_generator_constructors,
+        game.dynamics.subsystems,
+        trajectory_parameterizations,
+    ) do constructor, subdynamics, parameterization
+        constructor(game, subdynamics, parameterization, planning_horizon)
+    end
     trajectory_reference_generators = map(
         reference_generator_constructors,
         trajectory_generators,
@@ -79,7 +76,6 @@ function LiftedTrajectoryGameSolver(
             input_dimension,
             n_params = param_dim(trajectory_generator),
             n_actions = n_player_actions,
-            trajectory_generator.problem.parameterization.params_abs_max,
             learning_rate,
             rng,
             initial_parameters = initial_player_parameters,
@@ -111,6 +107,7 @@ end
 
 # π
 function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
+    # TODO: split network state from given game state
     input = [initial_state; solver.context_state]
     map(ii -> solver.trajectory_reference_generators[ii](input), 1:n_players)
 end
@@ -132,10 +129,10 @@ function generate_trajectory_candidates(
         end
     end
 
-    map_threadable(1:n_players, solver.execution_policy) do ii
-        references = references_per_player[ii]
-        trajectory_generator = solver.trajectory_generators[ii]
-        substate = state_per_player[ii]
+    map_threadable(1:n_players, solver.execution_policy) do player_i
+        references = references_per_player[player_i]
+        trajectory_generator = solver.trajectory_generators[player_i]
+        substate = state_per_player[player_i]
         map(
             reference -> (; trajectory = trajectory_generator(substate, reference), reference),
             references,
@@ -308,19 +305,14 @@ function cost_gradients(back, solver, game, ::ZeroSumCostStructure)
 end
 
 function update_state_value_predictor!(solver, state, game_value_per_player)
-    if !isnothing(solver.state_value_predictor) &&
-       !isnothing(solver.enable_learning) &&
-       any(solver.enable_learning)
-        push!(
-            solver.state_value_predictor.replay_buffer,
-            (; value_target_per_player = game_value_per_player, state),
-        )
+    push!(
+        solver.state_value_predictor.replay_buffer,
+        (; value_target_per_player = game_value_per_player, state),
+    )
 
-        if length(solver.state_value_predictor.replay_buffer) >=
-           solver.state_value_predictor.batch_size
-            fit_value_predictor!(solver.state_value_predictor)
-            empty!(solver.state_value_predictor.replay_buffer)
-        end
+    if length(solver.state_value_predictor.replay_buffer) >= solver.state_value_predictor.batch_size
+        fit_value_predictor!(solver.state_value_predictor)
+        empty!(solver.state_value_predictor.replay_buffer)
     end
 end
 
@@ -382,7 +374,11 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         end
     end
 
-    update_state_value_predictor!(solver, initial_state, info.game_value_per_player)
+    if !isnothing(solver.state_value_predictor) &&
+       !isnothing(solver.enable_learning) &&
+       any(solver.enable_learning)
+        update_state_value_predictor!(solver, initial_state, info.game_value_per_player)
+    end
 
     γs = map(
         Iterators.countfrom(),

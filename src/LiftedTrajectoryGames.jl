@@ -40,11 +40,12 @@ using ChainRulesCore: ChainRulesCore
 include("threadsx_chainrules_piracy.jl")
 include("execution_policy.jl")
 
-include("trajectory_reference_generators.jl")
+include("coupling_constraint_handlers.jl")
+include("execution_policy.jl")
+include("solver.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")
-include("coupling_constraint_handlers.jl")
-include("solver.jl")
+include("trajectory_reference_generators.jl")
 include("visualization.jl")
 
 end

@@ -11,11 +11,11 @@ end
 function NNActionGenerator(;
     input_dimension,
     n_params,
-    params_abs_max,
     n_actions,
     learning_rate,
     rng,
     initial_parameters,
+    params_abs_max = 1.0,
     hidden_dim = 100,
     n_hidden_layers = 2,
     output_activation = tanh,
