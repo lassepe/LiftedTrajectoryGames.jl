@@ -106,7 +106,6 @@ end
 
 # π
 function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
-    # TODO: split network state from given game state
     input = [initial_state; solver.context_state]
     map(ii -> solver.trajectory_reference_generators[ii](input), 1:n_players)
 end
