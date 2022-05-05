@@ -70,7 +70,6 @@ function OnlineOptimizationActionGenerator(;
     input_dimension = nothing,
     n_actions,
     parameter_dimension,
-    params_abs_max,
     learning_rate,
     rng,
     initial_parameters = nothing,
