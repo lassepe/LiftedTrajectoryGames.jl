@@ -4,9 +4,9 @@ A potentially non-deterministic strategy that mixes over multiple continuous tra
 Base.@kwdef struct LiftedTrajectoryStrategy{TC,TW,TI,TR} <: AbstractStrategy
     "Player index"
     player_i::Int
-    "A vector of action candidates in continuous domain."
-    trajectory_candidates::Vector{TC}
-    "A collection of weights associated with each candidate aciton to mix over these candidates."
+    "A vector of actions in continuous domain."
+    trajectories::Vector{TC}
+    "A collection of weights associated with each candidate action to mix over these."
     weights::TW
     "A dict-like object with additioal information about this strategy."
     info::TI
@@ -22,7 +22,7 @@ function (strategy::LiftedTrajectoryStrategy)(state, t)
         strategy.action_index[] = sample(strategy.rng, Weights(strategy.weights))
     end
 
-    (; xs, us) = strategy.trajectory_candidates[strategy.action_index[]]
+    (; xs, us) = strategy.trajectories[strategy.action_index[]]
 
     if xs[t] != state[Block(strategy.player_i)]
         throw(
