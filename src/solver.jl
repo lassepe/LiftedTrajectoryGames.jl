@@ -251,7 +251,6 @@ function forward_pass(;
 end
 
 function clean_info_tuple(; game_value_per_player, mixing_strategies, candidates_per_player)
-    # TODO integrate references again
     (;
         game_value_per_player = ForwardDiff.value.(game_value_per_player),
         mixing_strategies = [ForwardDiff.value.(q) for q in mixing_strategies],
