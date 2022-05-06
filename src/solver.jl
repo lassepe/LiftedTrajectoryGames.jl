@@ -53,6 +53,7 @@ function LiftedTrajectoryGameSolver(
     state_value_predictor = nothing,
     context_state = Float64[],
     compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
+    reference_generator_input_dimension = state_dim(game.dynamics) + length(context_state),
 )
     # setup a trajectory generator for every player
     trajectory_generators = map(
@@ -73,9 +74,8 @@ function LiftedTrajectoryGameSolver(
     n_player_actions,
     initial_player_parameters,
     learning_rate
-        input_dimension = state_dim(game.dynamics) + length(context_state)
         constructor(;
-            input_dimension,
+            input_dimension = reference_generator_input_dimension,
             parameter_dimension = parameter_dimension(trajectory_generator),
             n_actions = n_player_actions,
             learning_rate,
