@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "A collection of action generators, one for each player in the game."
     trajectory_reference_generators::T1
     "A acollection of trajectory generators, one for each player in the game"
@@ -24,6 +24,8 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     state_value_predictor::T9
     "A type providing information about the context, which is passed to the reference generators"
     context_state::T10
+    "TODO"
+    compose_reference_generator_input::T11
 end
 
 """
@@ -50,6 +52,7 @@ function LiftedTrajectoryGameSolver(
     execution_policy = SequentialExecutionPolicy(),
     state_value_predictor = nothing,
     context_state = Float64[],
+    compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
 )
     # setup a trajectory generator for every player
     trajectory_generators = map(
@@ -93,6 +96,7 @@ function LiftedTrajectoryGameSolver(
         execution_policy,
         state_value_predictor,
         context_state,
+        compose_reference_generator_input,
     )
 end
 
@@ -105,9 +109,12 @@ function huber(x; δ = 1)
 end
 
 # π
-function generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
-    input = [initial_state; solver.context_state]
-    map(ii -> solver.trajectory_reference_generators[ii](input), 1:n_players)
+function generate_trajectory_references(solver, initial_state; n_players)
+    map(1:n_players) do player_i
+        input =
+            solver.compose_reference_generator_input(player_i, initial_state, solver.context_state)
+        solver.trajectory_reference_generators[player_i](input)
+    end
 end
 
 # TRAJ
@@ -194,16 +201,9 @@ function compute_regularized_loss(
 end
 
 # Make this compatable with many players
-function forward_pass(;
-    solver,
-    game,
-    initial_state,
-    min_action_probability,
-    enable_caching_per_player,
-)
+function forward_pass(; solver, game, initial_state, min_action_probability)
     n_players = num_players(game)
-    references_per_player =
-        generate_trajectory_references(solver, initial_state; n_players, enable_caching_per_player)
+    references_per_player = generate_trajectory_references(solver, initial_state; n_players)
 
     stacked_references = reduce(hcat, references_per_player)
 
@@ -311,7 +311,6 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     game::TrajectoryGame{<:ProductDynamics},
     initial_state;
     min_action_probability = 0.05,
-    enable_caching_per_player = zeros(Bool, num_players(game)),
     parameter_noise = 0.0,
     scale_action_gradients = true,
 )
@@ -319,24 +318,12 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
         trainable_parameters = Flux.params(solver.trajectory_reference_generators...)
         forward_pass_result, back = Zygote.pullback(
-            () -> forward_pass(;
-                solver,
-                game,
-                initial_state,
-                min_action_probability,
-                enable_caching_per_player,
-            ),
+            () -> forward_pass(; solver, game, initial_state, min_action_probability),
             trainable_parameters,
         )
         ∇L_per_player = cost_gradients(back, solver, game)
     else
-        forward_pass_result = forward_pass(;
-            solver,
-            game,
-            initial_state,
-            min_action_probability,
-            enable_caching_per_player,
-        )
+        forward_pass_result = forward_pass(; solver, game, initial_state, min_action_probability)
         ∇L_per_player = [nothing for n in 1:n_players]
     end
 
