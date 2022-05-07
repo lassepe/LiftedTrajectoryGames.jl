@@ -30,8 +30,8 @@ end
 Convenience constructor to derive a suitable solver directly from a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ProductDynamics};
-    planning_horizon,
+    game::TrajectoryGame{<:ProductDynamics},
+    planning_horizon;
     rng = Random.MersenneTwister(1),
     trajectory_parameterizations = [
         InputReferenceParameterization(; α = 3) for _ in 1:num_players(game)
