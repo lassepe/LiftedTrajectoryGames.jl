@@ -326,7 +326,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
         ∇L_per_player = cost_gradients(back, solver, game)
     else
         forward_pass_result = forward_pass(; solver, game, initial_state, min_action_probability)
-        ∇L_per_player = [nothing for n in 1:n_players]
+        ∇L_per_player = [nothing for _ in 1:n_players]
     end
 
     (; loss_per_player, info) = forward_pass_result
