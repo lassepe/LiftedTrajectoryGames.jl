@@ -1,7 +1,7 @@
 struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "A collection of action generators, one for each player in the game."
     trajectory_reference_generators::T1
-    "A acollection of trajectory generators, one for each player in the game"
+    "A collection of trajectory generators, one for each player in the game"
     trajectory_generators::T2
     "A callable `(game, xs, us) -> cs` which maps the joint state-input trajectory `(xs, us)` to a
     tuple of scalar costs `cs` for a given `game`. In the simplest case, this may just forward to
@@ -158,22 +158,23 @@ function compute_costs(solver, trajectories_per_player; trajectory_pairings, n_p
             isnothing(solver.state_value_predictor) ? length(xs) :
             solver.state_value_predictor.turn_length
 
-        trajectory_cost = solver.coupling_constraints_handler(
-            game,
-            xs[1:turn_length],
-            us[1:(turn_length - 1)],
-            solver.context_state,
-        )
+        xs = xs[1:turn_length]
+        us = us[1:(turn_length - 1)]
+
+        trajectory_costs = game.cost(xs, us, solver.context_state)
+        if !isnothing(game.coupling_constraints)
+            trajectory_costs .+= solver.coupling_constraints_handler(game, xs, us, solver.context_state)
+        end
 
         if isnothing(solver.state_value_predictor)
-            cost_to_go = 0
+            costs_to_go = 0
         else
             # TODO: in the zero-sum case we could have a specialized state_value_predictor that
             # exploits the symmetry in the state value.
-            cost_to_go = game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
+            costs_to_go = game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
         end
 
-        trajectory_cost .+ cost_to_go
+        trajectory_costs .+ costs_to_go
     end
 
     # transpose tensor of tuples to tuple of tensors
