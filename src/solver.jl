@@ -70,14 +70,14 @@ function LiftedTrajectoryGameSolver(
         n_actions,
         initial_parameters,
         learning_rates,
-    ) do trajectory_generator, n_actions, initial_player_parameters, learning_rate
+    ) do trajectory_generator, n_actions, initial_parameters, learning_rate
         NNActionGenerator(;
             input_dimension,
             parameter_dimension = parameter_dimension(trajectory_generator),
             n_actions,
             learning_rate,
             rng,
-            initial_parameters = initial_player_parameters,
+            initial_parameters,
             gradient_clipping_threshold,
         )
     end
