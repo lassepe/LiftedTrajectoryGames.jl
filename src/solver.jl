@@ -32,15 +32,9 @@ Convenience constructor to derive a suitable solver directly from a given game.
 function LiftedTrajectoryGameSolver(
     game::TrajectoryGame{<:ProductDynamics},
     planning_horizon;
-    rng = Random.MersenneTwister(1),
     trajectory_parameterizations = [
         InputReferenceParameterization(; α = 3) for _ in 1:num_players(game)
     ],
-    initial_parameters = [:random for _ in 1:num_players(game)],
-    n_actions = [2 for _ in 1:num_players(game)],
-    learning_rates = [0.05 for _ in 1:num_players(game)],
-    gradient_clipping_threshold = nothing,
-    context_dimension = 0,
     kwargs...,
 )
     trajectory_generators =
@@ -52,6 +46,25 @@ function LiftedTrajectoryGameSolver(
                 planning_horizon,
             )
         end
+    LiftedTrajectoryGameSolver(game, planning_horizon, trajectory_generators; kwargs...)
+end
+
+"""
+Convenience constructor to build a solver from a given game and a trajectory generator.
+"""
+function LiftedTrajectoryGameSolver(
+    game::TrajectoryGame{<:ProductDynamics},
+    planning_horizon,
+    trajectory_generators;
+    rng = Random.MersenneTwister(1),
+    context_dimension = 0,
+    input_dimension = state_dim(game.dynamics) + context_dimension,
+    initial_parameters = [:random for _ in 1:num_players(game)],
+    n_actions = [2 for _ in 1:num_players(game)],
+    learning_rates = [0.05 for _ in 1:num_players(game)],
+    gradient_clipping_threshold = nothing,
+    kwargs...,
+)
     trajectory_reference_generators = map(
         trajectory_generators,
         n_actions,
@@ -59,7 +72,7 @@ function LiftedTrajectoryGameSolver(
         learning_rates,
     ) do trajectory_generator, n_actions, initial_player_parameters, learning_rate
         NNActionGenerator(;
-            input_dimension = state_dim(game.dynamics) + context_dimension,
+            input_dimension,
             parameter_dimension = parameter_dimension(trajectory_generator),
             n_actions,
             learning_rate,
@@ -70,9 +83,9 @@ function LiftedTrajectoryGameSolver(
     end
     LiftedTrajectoryGameSolver(
         game,
-        trajectory_reference_generators,
-        trajectory_generators;
         planning_horizon,
+        trajectory_generators,
+        trajectory_reference_generators;
         rng,
         kwargs...,
     )
@@ -82,11 +95,11 @@ end
 Convenience constructor to construct a solver pipeline from given generators.
 """
 function LiftedTrajectoryGameSolver(
-    game,
-    trajectory_reference_generators,
-    trajectory_generators;
-    coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
+    game::TrajectoryGame{<:ProductDynamics},
     planning_horizon,
+    trajectory_generators,
+    trajectory_reference_generators;
+    coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
     rng = Random.MersenneTwister(1),
     dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
     enable_learning = [true for _ in 1:num_players(game)],
