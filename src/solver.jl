@@ -1,4 +1,4 @@
-struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
+struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "A collection of action generators, one for each player in the game."
     trajectory_reference_generators::T1
     "A collection of trajectory generators, one for each player in the game"
@@ -9,6 +9,7 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     constraints."
     coupling_constraints_handler::T3
     "The number of time steps to plan into the future."
+    # TODO: move planning horizon out of solver
     planning_horizon::T4
     "A random number generator to generate non-deterministic strategies."
     rng::T5
@@ -22,69 +23,78 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
     optimal cost-to-go's for each player."
     state_value_predictor::T9
-    "A type providing information about the context, which is passed to the reference generators"
-    context_state::T10
     "TODO"
-    compose_reference_generator_input::T11
+    compose_reference_generator_input::T10
 end
 
 """
-Convenience constructor to drive a suitable solver directly form a given game.
+Convenience constructor to derive a suitable solver directly from a given game.
 """
 function LiftedTrajectoryGameSolver(
-    game::TrajectoryGame{<:ProductDynamics},
-    planning_horizon;
+    game::TrajectoryGame{<:ProductDynamics};
+    planning_horizon,
     rng = Random.MersenneTwister(1),
-    initial_parameters = [:random for _ in 1:num_players(game)],
-    n_actions = [2 for _ in 1:num_players(game)],
-    reference_generator_constructors = [NNActionGenerator for _ in 1:num_players(game)],
-    trajectory_generator_constructors = [
-        DifferentiableTrajectoryGenerator for _ in 1:num_players(game)
-    ],
-    learning_rates = [0.05 for _ in 1:num_players(game)],
     trajectory_parameterizations = [
         InputReferenceParameterization(; α = 3) for _ in 1:num_players(game)
     ],
-    coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
-    dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
-    enable_learning = [true for _ in 1:num_players(game)],
+    initial_parameters = [:random for _ in 1:num_players(game)],
+    n_actions = [2 for _ in 1:num_players(game)],
+    learning_rates = [0.05 for _ in 1:num_players(game)],
     gradient_clipping_threshold = nothing,
-    execution_policy = SequentialExecutionPolicy(),
-    state_value_predictor = nothing,
-    context_state = Float64[],
-    compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
-    reference_generator_input_dimension = state_dim(game.dynamics) + length(context_state),
+    context_dimension = 0,
+    kwargs...,
 )
-    # setup a trajectory generator for every player
-    trajectory_generators = map(
-        trajectory_generator_constructors,
-        game.dynamics.subsystems,
-        trajectory_parameterizations,
-    ) do constructor, subdynamics, parameterization
-        constructor(game.env, subdynamics, parameterization, planning_horizon)
-    end
+    trajectory_generators =
+        map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
+            DifferentiableTrajectoryGenerator(
+                game.env,
+                subdynamics,
+                parameterization,
+                planning_horizon,
+            )
+        end
     trajectory_reference_generators = map(
-        reference_generator_constructors,
         trajectory_generators,
         n_actions,
         initial_parameters,
         learning_rates,
-    ) do constructor,
-    trajectory_generator,
-    n_player_actions,
-    initial_player_parameters,
-    learning_rate
-        constructor(;
-            input_dimension = reference_generator_input_dimension,
+    ) do trajectory_generator, n_actions, initial_player_parameters, learning_rate
+        NNActionGenerator(;
+            input_dimension = state_dim(game.dynamics) + context_dimension,
             parameter_dimension = parameter_dimension(trajectory_generator),
-            n_actions = n_player_actions,
+            n_actions,
             learning_rate,
             rng,
             initial_parameters = initial_player_parameters,
             gradient_clipping_threshold,
         )
     end
+    LiftedTrajectoryGameSolver(
+        game,
+        trajectory_reference_generators,
+        trajectory_generators;
+        planning_horizon,
+        rng,
+        kwargs...,
+    )
+end
 
+"""
+Convenience constructor to construct a solver pipeline from given generators.
+"""
+function LiftedTrajectoryGameSolver(
+    game,
+    trajectory_reference_generators,
+    trajectory_generators;
+    coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
+    planning_horizon,
+    rng = Random.MersenneTwister(1),
+    dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
+    enable_learning = [true for _ in 1:num_players(game)],
+    execution_policy = SequentialExecutionPolicy(),
+    state_value_predictor = nothing,
+    compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
+)
     LiftedTrajectoryGameSolver(
         trajectory_reference_generators,
         trajectory_generators,
@@ -95,7 +105,6 @@ function LiftedTrajectoryGameSolver(
         enable_learning,
         execution_policy,
         state_value_predictor,
-        context_state,
         compose_reference_generator_input,
     )
 end
@@ -109,10 +118,9 @@ function huber(x; δ = 1)
 end
 
 # π
-function generate_trajectory_references(solver, initial_state; n_players)
+function generate_trajectory_references(solver, initial_state, context_state; n_players)
     map(1:n_players) do player_i
-        input =
-            solver.compose_reference_generator_input(player_i, initial_state, solver.context_state)
+        input = solver.compose_reference_generator_input(player_i, initial_state, context_state)
         solver.trajectory_reference_generators[player_i](input)
     end
 end
@@ -142,7 +150,14 @@ function generate_trajectories(
     end
 end
 
-function compute_costs(solver, trajectories_per_player; trajectory_pairings, n_players, game)
+function compute_costs(
+    solver,
+    trajectories_per_player,
+    context_state;
+    trajectory_pairings,
+    n_players,
+    game,
+)
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
         trajectories = (trajectories_per_player[j][i[j]] for j in 1:n_players)
 
@@ -161,10 +176,9 @@ function compute_costs(solver, trajectories_per_player; trajectory_pairings, n_p
         xs = xs[1:turn_length]
         us = us[1:(turn_length - 1)]
 
-        trajectory_costs = game.cost(xs, us, solver.context_state)
+        trajectory_costs = game.cost(xs, us, context_state)
         if !isnothing(game.coupling_constraints)
-            trajectory_costs .+=
-                solver.coupling_constraints_handler(game, xs, us, solver.context_state)
+            trajectory_costs .+= solver.coupling_constraints_handler(game, xs, us, context_state)
         end
 
         if isnothing(solver.state_value_predictor)
@@ -193,6 +207,7 @@ function compute_regularized_loss(
     planning_horizon,
     dual_regularization_weights,
 )
+    # TODO: move regularization to a more general level
     dual_regularizations =
         [sum(sum(huber.(c.λs)) for c in trajectories_per_player[i]) for i in 1:n_players] ./ planning_horizon
 
@@ -203,9 +218,9 @@ function compute_regularized_loss(
 end
 
 # Make this compatable with many players
-function forward_pass(; solver, game, initial_state, min_action_probability)
+function forward_pass(; solver, game, initial_state, context_state, min_action_probability)
     n_players = num_players(game)
-    references_per_player = generate_trajectory_references(solver, initial_state; n_players)
+    references_per_player = generate_trajectory_references(solver, initial_state, context_state; n_players)
 
     stacked_references = reduce(hcat, references_per_player)
 
@@ -226,8 +241,14 @@ function forward_pass(; solver, game, initial_state, min_action_probability)
         )
         # f
         # Evaluate the functions on all joint trajectories in the cost tensor
-        cost_tensors_per_player =
-            compute_costs(solver, trajectories_per_player; trajectory_pairings, n_players, game)
+        cost_tensors_per_player = compute_costs(
+            solver,
+            trajectories_per_player,
+            context_state;
+            trajectory_pairings,
+            n_players,
+            game,
+        )
         # Compute the mixing strategies, q_i, via a finite game solve;
         mixing_strategies =
             TensorGames.compute_equilibrium(cost_tensors_per_player; ϵ = min_action_probability).x
@@ -308,10 +329,12 @@ function update_state_value_predictor!(solver, state, game_value_per_player)
     end
 end
 
+# TODO: move parameters to solver
 function TrajectoryGamesBase.solve_trajectory_game!(
     solver::LiftedTrajectoryGameSolver,
     game::TrajectoryGame{<:ProductDynamics},
     initial_state;
+    context_state = Float64[],
     min_action_probability = 0.05,
     parameter_noise = 0.0,
     scale_action_gradients = true,
@@ -320,12 +343,19 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     if !isnothing(solver.enable_learning) && any(solver.enable_learning)
         trainable_parameters = Flux.params(solver.trajectory_reference_generators...)
         forward_pass_result, back = Zygote.pullback(
-            () -> forward_pass(; solver, game, initial_state, min_action_probability),
+            () -> forward_pass(;
+                solver,
+                game,
+                initial_state,
+                context_state,
+                min_action_probability,
+            ),
             trainable_parameters,
         )
         ∇L_per_player = cost_gradients(back, solver, game)
     else
-        forward_pass_result = forward_pass(; solver, game, initial_state, min_action_probability)
+        forward_pass_result =
+            forward_pass(; solver, game, initial_state, context_state, min_action_probability)
         ∇L_per_player = [nothing for _ in 1:n_players]
     end
 
