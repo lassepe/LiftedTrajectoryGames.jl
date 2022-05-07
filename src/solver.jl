@@ -163,7 +163,8 @@ function compute_costs(solver, trajectories_per_player; trajectory_pairings, n_p
 
         trajectory_costs = game.cost(xs, us, solver.context_state)
         if !isnothing(game.coupling_constraints)
-            trajectory_costs .+= solver.coupling_constraints_handler(game, xs, us, solver.context_state)
+            trajectory_costs .+=
+                solver.coupling_constraints_handler(game, xs, us, solver.context_state)
         end
 
         if isnothing(solver.state_value_predictor)
@@ -359,7 +360,7 @@ function TrajectoryGamesBase.solve_trajectory_game!(
     end
 
     γs = map(
-        Iterators.countfrom(),
+        1:n_players,
         info.mixing_strategies,
         loss_per_player,
         info.trajectories_per_player,
