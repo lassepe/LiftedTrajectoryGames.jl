@@ -9,7 +9,6 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     constraints."
     coupling_constraints_handler::T3
     "The number of time steps to plan into the future."
-    # TODO: move planning horizon out of solver
     planning_horizon::T4
     "A random number generator to generate non-deterministic strategies."
     rng::T5
@@ -23,7 +22,7 @@ struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "A state value predictor (e.g. a neural network) that maps the current state to a tuple of
     optimal cost-to-go's for each player."
     state_value_predictor::T9
-    "TODO"
+    "A function to compose the input of the reference generator from parameters (player_i, state, context)."
     compose_reference_generator_input::T10
 end
 
@@ -107,14 +106,6 @@ function LiftedTrajectoryGameSolver(
         state_value_predictor,
         compose_reference_generator_input,
     )
-end
-
-function huber(x; δ = 1)
-    if abs(x) > δ
-        δ * (abs(x) - 0.5δ)
-    else
-        0.5x^2
-    end
 end
 
 # π
@@ -207,7 +198,14 @@ function compute_regularized_loss(
     planning_horizon,
     dual_regularization_weights,
 )
-    # TODO: move regularization to a more general level
+    function huber(x; δ = 1)
+        if abs(x) > δ
+            δ * (abs(x) - 0.5δ)
+        else
+            0.5x^2
+        end
+    end
+
     dual_regularizations =
         [sum(sum(huber.(c.λs)) for c in trajectories_per_player[i]) for i in 1:n_players] ./ planning_horizon
 
@@ -220,7 +218,8 @@ end
 # Make this compatable with many players
 function forward_pass(; solver, game, initial_state, context_state, min_action_probability)
     n_players = num_players(game)
-    references_per_player = generate_trajectory_references(solver, initial_state, context_state; n_players)
+    references_per_player =
+        generate_trajectory_references(solver, initial_state, context_state; n_players)
 
     stacked_references = reduce(hcat, references_per_player)
 
