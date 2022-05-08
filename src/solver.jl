@@ -38,7 +38,7 @@ function LiftedTrajectoryGameSolver(
     trajectory_generator_constructors = [DifferentiableTrajectoryGenerator for _ in 1:num_players(game)],
     rng = Random.MersenneTwister(1),
     context_dimension = 0,
-    input_dimension = state_dim(game.dynamics) + context_dimension,
+    reference_generator_input_dimension = state_dim(game.dynamics) + context_dimension,
     initial_parameters = [:random for _ in 1:num_players(game)],
     n_actions = [2 for _ in 1:num_players(game)],
     learning_rates = [0.05 for _ in 1:num_players(game)],
@@ -68,7 +68,7 @@ function LiftedTrajectoryGameSolver(
         learning_rates,
     ) do constructor, trajectory_generator, n_actions, initial_parameters, learning_rate
         constructor(;
-            input_dimension,
+            reference_generator_input_dimension,
             parameter_dimension = parameter_dimension(trajectory_generator),
             n_actions,
             learning_rate,
