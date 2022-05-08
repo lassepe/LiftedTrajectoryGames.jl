@@ -68,7 +68,7 @@ function LiftedTrajectoryGameSolver(
         learning_rates,
     ) do constructor, trajectory_generator, n_actions, initial_parameters, learning_rate
         constructor(;
-            reference_generator_input_dimension,
+            input_dimension = reference_generator_input_dimension,
             parameter_dimension = parameter_dimension(trajectory_generator),
             n_actions,
             learning_rate,
