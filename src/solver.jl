@@ -135,35 +135,29 @@ function compute_costs(
     cost_tensor = map_threadable(trajectory_pairings, solver.execution_policy) do i
         trajectories = (trajectories_per_player[j][i[j]] for j in 1:n_players)
 
-        xs = map((t.xs for t in trajectories)...) do x...
+        cost_horizon =
+            isnothing(solver.state_value_predictor) ? solver.planning_horizon + 1 :
+            solver.state_value_predictor.turn_length
+
+        xs = map((t.xs[1:cost_horizon] for t in trajectories)...) do x...
             mortar(collect(x))
         end
 
-        us = map((t.us for t in trajectories)...) do u...
+        us = map((t.us[1:(cost_horizon - 1)] for t in trajectories)...) do u...
             mortar(collect(u))
         end
-
-        turn_length =
-            isnothing(solver.state_value_predictor) ? length(xs) :
-            solver.state_value_predictor.turn_length
-
-        xs = xs[1:turn_length]
-        us = us[1:(turn_length - 1)]
 
         trajectory_costs = game.cost(xs, us, context_state)
         if !isnothing(game.coupling_constraints)
             trajectory_costs .+= solver.coupling_constraints_handler(game, xs, us, context_state)
         end
 
-        if isnothing(solver.state_value_predictor)
-            costs_to_go = 0
-        else
-            # TODO: in the zero-sum case we could have a specialized state_value_predictor that
-            # exploits the symmetry in the state value.
-            costs_to_go = game.cost.discount_factor .* solver.state_value_predictor(xs[turn_length])
+        if !isnothing(solver.state_value_predictor)
+            trajectory_costs .+=
+                game.cost.discount_factor .* solver.state_value_predictor(xs[cost_horizon])
         end
 
-        trajectory_costs .+ costs_to_go
+        trajectory_costs
     end
 
     # transpose tensor of tuples to tuple of tensors
