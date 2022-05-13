@@ -283,7 +283,7 @@ end
 
 function cost_gradients(back, solver, game, ::ZeroSumCostStructure)
     num_players(game) == 2 || error("Not implemented for N>2 players")
-    if isnothing(game.coupling_constraints)
+    if !isnothing(game.coupling_constraints)
         return cost_gradients(back, solver, game, GeneralSumCostStructure())
     end
     if !any(solver.enable_learning)
