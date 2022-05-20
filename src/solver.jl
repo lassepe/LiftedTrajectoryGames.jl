@@ -60,10 +60,10 @@ function LiftedTrajectoryGameSolver(
                 control_box_constraints =
                     get_constraints_from_box_bounds(control_bounds(subdynamics))
 
-                function (X, U)
-                    pc = mapreduce(position_constraints, vcat, eachcol(X[1:2, :]))
-                    sc = mapreduce(state_box_constraints, vcat, eachcol(X))
-                    cc = mapreduce(control_box_constraints, vcat, eachcol(U))
+                function (xs, us)
+                    pc = mapreduce(x -> position_constraints(x[1:2]), vcat, xs)
+                    sc = mapreduce(state_box_constraints, vcat, xs)
+                    cc = mapreduce(control_box_constraints, vcat, us)
                     [pc; sc; cc]
                 end
             end
