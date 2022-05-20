@@ -52,19 +52,29 @@ function LiftedTrajectoryGameSolver(
     compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
 )
     trajectory_generators = let
-        environment_constraints = let
-            position_constraints = to_sublevelset(game.env)
-            (X, U) -> mapreduce(position_constraints, vcat, eachcol(X[1:2, :]))
-        end
-
         map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
+            inequality_constraints = let
+                position_constraints = get_position_constraints(game.env)
+                state_box_constraints =
+                    get_constraints_from_box_bounds(state_bounds(subdynamics))
+                control_box_constraints =
+                    get_constraints_from_box_bounds(control_bounds(subdynamics))
+
+                function (X, U)
+                    pc = mapreduce(position_constraints, vcat, eachcol(X[1:2, :]))
+                    sc = mapreduce(state_box_constraints, vcat, eachcol(X))
+                    cc = mapreduce(control_box_constraints, vcat, eachcol(U))
+                    [pc; sc; cc]
+                end
+            end
+
             trajectory_problem = ParametricTrajectoryOptimizationProblem(
                 parameterization,
                 subdynamics,
                 state_dim(subdynamics),
                 control_dim(subdynamics),
                 planning_horizon,
-                environment_constraints,
+                inequality_constraints,
             )
             DifferentiableTrajectoryGenerator(trajectory_problem, trajectory_solver)
         end

@@ -4,12 +4,13 @@ module LiftedTrajectoryGames
 
 using DifferentiableTrajectoryGenerators:
     DifferentiableTrajectoryGenerator,
-    ParametricTrajectoryOptimizationProblem,
-    InputReferenceParameterization,
     GoalReferenceParameterization,
+    InputReferenceParameterization,
+    ParametricTrajectoryOptimizationProblem,
     QPSolver,
-    parameter_dimension,
-    is_thread_safe
+    get_constraints_from_box_bounds,
+    is_thread_safe,
+    parameter_dimension
 using TrajectoryGamesBase:
     TrajectoryGamesBase,
     TrajectoryGame,
@@ -21,12 +22,14 @@ using TrajectoryGamesBase:
     ZeroSumCostStructure,
     state_dim,
     control_dim,
+    state_bounds,
+    control_bounds,
     num_players,
     join_actions,
     Block,
     blocks,
     mortar,
-    to_sublevelset
+    get_position_constraints
 using Flux: Flux, Chain, Dense, Optimise, leakyrelu, @functor
 using Makie: Makie
 using StatsBase: Weights, sample
