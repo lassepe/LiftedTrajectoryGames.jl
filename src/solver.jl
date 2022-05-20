@@ -76,7 +76,7 @@ function LiftedTrajectoryGameSolver(
                 planning_horizon,
                 inequality_constraints,
             )
-            DifferentiableTrajectoryGenerator(trajectory_problem, trajectory_solver)
+            Optimizer(trajectory_problem, trajectory_solver)
         end
     end
 

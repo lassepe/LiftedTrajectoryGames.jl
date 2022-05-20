@@ -2,8 +2,8 @@ __precompile__(false)
 
 module LiftedTrajectoryGames
 
-using DifferentiableTrajectoryGenerators:
-    DifferentiableTrajectoryGenerator,
+using DifferentiableTrajectoryOptimization:
+    Optimizer,
     GoalReferenceParameterization,
     InputReferenceParameterization,
     ParametricTrajectoryOptimizationProblem,
