@@ -25,7 +25,8 @@ using TrajectoryGamesBase:
     join_actions,
     Block,
     blocks,
-    mortar
+    mortar,
+    to_sublevelset
 using Flux: Flux, Chain, Dense, Optimise, leakyrelu, @functor
 using Makie: Makie
 using StatsBase: Weights, sample
