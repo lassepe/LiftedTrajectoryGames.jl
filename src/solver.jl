@@ -35,9 +35,7 @@ function LiftedTrajectoryGameSolver(
     trajectory_parameterizations = [
         InputReferenceParameterization(; α = 3) for _ in 1:num_players(game)
     ],
-    trajectory_generator_constructors = [
-        DifferentiableTrajectoryGenerator for _ in 1:num_players(game)
-    ],
+    trajectory_solver = QPSolver(),
     rng = Random.MersenneTwister(1),
     context_dimension = 0,
     reference_generator_input_dimension = state_dim(game.dynamics) + context_dimension,
@@ -53,20 +51,18 @@ function LiftedTrajectoryGameSolver(
     state_value_predictor = nothing,
     compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
 )
-    trajectory_generators = map(
-        trajectory_generator_constructors,
-        game.dynamics.subsystems,
-        trajectory_parameterizations,
-    ) do constructor, subdynamics, parameterization
-        constructor(
-            game.env,
-            subdynamics,
-            state_dim(subdynamics),
-            control_dim(subdynamics),
-            parameterization,
-            planning_horizon,
-        )
-    end
+    trajectory_generators =
+        map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
+            trajectory_problem = ParametricTrajectoryOptimizationProblem(
+                parameterization,
+                subdynamics,
+                state_dim(subdynamics),
+                control_dim(subdynamics),
+                game.env,
+                planning_horizon,
+            )
+            DifferentiableTrajectoryGenerator(trajectory_problem, trajectory_solver)
+        end
 
     if execution_policy isa MultiThreadedExecutionPolicy &&
        any(!is_thread_safe, trajectory_generators)
