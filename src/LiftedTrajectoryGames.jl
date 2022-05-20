@@ -8,7 +8,8 @@ using DifferentiableTrajectoryGenerators:
     InputReferenceParameterization,
     GoalReferenceParameterization,
     QPSolver,
-    parameter_dimension
+    parameter_dimension,
+    is_thread_safe
 using TrajectoryGamesBase:
     TrajectoryGamesBase,
     TrajectoryGame,

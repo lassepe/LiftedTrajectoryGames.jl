@@ -60,6 +60,20 @@ function LiftedTrajectoryGameSolver(
     ) do constructor, subdynamics, parameterization
         constructor(game.env, subdynamics, parameterization, planning_horizon)
     end
+
+    if execution_policy isa MultiThreadedExecutionPolicy &&
+       any(!is_thread_safe, trajectory_generators)
+        throw(
+            ArgumentError(
+                """
+                The solver trajectory optimization backend that you selected does not support \
+                multi-threaded execution. Consider using a another backend or disable \
+                multi-threading by handing another `execution_policy`.
+                """,
+            ),
+        )
+    end
+
     trajectory_reference_generators = map(
         reference_generator_constructors,
         trajectory_generators,
