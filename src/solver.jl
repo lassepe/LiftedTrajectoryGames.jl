@@ -58,7 +58,14 @@ function LiftedTrajectoryGameSolver(
         game.dynamics.subsystems,
         trajectory_parameterizations,
     ) do constructor, subdynamics, parameterization
-        constructor(game.env, subdynamics, parameterization, planning_horizon)
+        constructor(
+            game.env,
+            subdynamics,
+            state_dim(subdynamics),
+            control_dim(subdynamics),
+            parameterization,
+            planning_horizon,
+        )
     end
 
     if execution_policy isa MultiThreadedExecutionPolicy &&

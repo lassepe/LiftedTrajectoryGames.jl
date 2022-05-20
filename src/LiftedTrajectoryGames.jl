@@ -4,7 +4,7 @@ module LiftedTrajectoryGames
 
 using DifferentiableTrajectoryGenerators:
     DifferentiableTrajectoryGenerator,
-    ParametricOptimizationProblem,
+    ParametricTrajectoryOptimizationProblem,
     InputReferenceParameterization,
     GoalReferenceParameterization,
     QPSolver,
@@ -20,6 +20,7 @@ using TrajectoryGamesBase:
     GeneralSumCostStructure,
     ZeroSumCostStructure,
     state_dim,
+    control_dim,
     num_players,
     join_actions,
     Block,
