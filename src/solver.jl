@@ -1,8 +1,8 @@
 struct LiftedTrajectoryGameSolver{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     "A collection of action generators, one for each player in the game."
     trajectory_reference_generators::T1
-    "A collection of trajectory generators, one for each player in the game"
-    trajectory_generators::T2
+    "A collection of trajectory optimizers, one for each player in the game"
+    trajectory_optimizers::T2
     "A callable `(game, xs, us) -> cs` which maps the joint state-input trajectory `(xs, us)` to a
     tuple of scalar costs `cs` for a given `game`. In the simplest case, this may just forward to
     the `game.cost`. More generally, however, this function will add penalties to enforce
@@ -51,7 +51,7 @@ function LiftedTrajectoryGameSolver(
     state_value_predictor = nothing,
     compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
 )
-    trajectory_generators = let
+    trajectory_optimizers = let
         map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
             inequality_constraints = let
                 position_constraints = get_position_constraints(game.env)
@@ -81,7 +81,7 @@ function LiftedTrajectoryGameSolver(
     end
 
     if execution_policy isa MultiThreadedExecutionPolicy &&
-       any(!is_thread_safe, trajectory_generators)
+       any(!is_thread_safe, trajectory_optimizers)
         throw(
             ArgumentError(
                 """
@@ -95,7 +95,7 @@ function LiftedTrajectoryGameSolver(
 
     trajectory_reference_generators = map(
         reference_generator_constructors,
-        trajectory_generators,
+        trajectory_optimizers,
         n_actions,
         initial_parameters,
         learning_rates,
@@ -112,7 +112,7 @@ function LiftedTrajectoryGameSolver(
     end
     LiftedTrajectoryGameSolver(
         trajectory_reference_generators,
-        trajectory_generators,
+        trajectory_optimizers,
         coupling_constraints_handler,
         planning_horizon,
         rng,
@@ -133,7 +133,7 @@ function generate_trajectory_references(solver, initial_state, context_state; n_
 end
 
 # TRAJ
-function generate_trajectories(
+function optimize_trajectories(
     solver,
     initial_state,
     stacked_references;
@@ -151,7 +151,7 @@ function generate_trajectories(
 
     map_threadable(1:n_players, solver.execution_policy) do player_i
         references = references_per_player[player_i]
-        trajectory_generator = solver.trajectory_generators[player_i]
+        trajectory_generator = solver.trajectory_optimizers[player_i]
         substate = state_per_player[player_i]
         map(reference -> trajectory_generator(substate, reference), references)
     end
@@ -241,7 +241,7 @@ function forward_pass(; solver, game, initial_state, context_state, min_action_p
     ) do stacked_references
         trajectory_pairings =
             Iterators.product([axes(references, 2) for references in references_per_player]...) |> collect
-        trajectories_per_player = generate_trajectories(
+        trajectories_per_player = optimize_trajectories(
             solver,
             initial_state,
             stacked_references;
