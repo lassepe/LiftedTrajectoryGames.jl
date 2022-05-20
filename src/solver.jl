@@ -46,7 +46,7 @@ function LiftedTrajectoryGameSolver(
     learning_rates = [0.05 for _ in 1:num_players(game)],
     reference_generator_constructors = [NNActionGenerator for _ in 1:num_players(game)],
     gradient_clipping_threshold = nothing,
-    coupling_constraints_handler = LangrangianCouplingConstraintHandler(100),
+    coupling_constraints_handler = LagrangianCouplingConstraintHandler(100),
     dual_regularization_weights = [1e-4 for _ in 1:num_players(game)],
     enable_learning = [true for _ in 1:num_players(game)],
     execution_policy = SequentialExecutionPolicy(),

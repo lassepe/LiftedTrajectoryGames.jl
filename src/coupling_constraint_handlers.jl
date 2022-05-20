@@ -1,8 +1,8 @@
-struct LangrangianCouplingConstraintHandler
+struct LagrangianCouplingConstraintHandler
     violation_penalty::Float64
 end
 
-function (constraint_handler::LangrangianCouplingConstraintHandler)(game, xs, us, context_state)
+function (constraint_handler::LagrangianCouplingConstraintHandler)(game, xs, us, context_state)
     constraint_penalties = map(game.coupling_constraints) do coupling_constraints_per_player
         sum(coupling_constraints_per_player(xs, us)) do g
             if g >= 0
