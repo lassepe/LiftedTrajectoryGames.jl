@@ -311,9 +311,9 @@ git-tree-sha1 = "28d605d9a0ac17118fe2c5e9ce0fbb76c3ceb120"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
 version = "1.11.0"
 
-[[deps.DifferentiableTrajectoryOptimization]]
+[[deps.Dito]]
 deps = ["ChainRulesCore", "ForwardDiff", "Ipopt", "LinearAlgebra", "OSQP", "SparseArrays", "Symbolics", "TrajectoryGamesBase"]
-path = "../DifferentiableTrajectoryOptimization"
+path = "../Dito"
 uuid = "86fad55d-71c6-41a1-96ed-88d107dcd2ba"
 version = "0.1.0"
 

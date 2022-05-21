@@ -2,7 +2,7 @@ __precompile__(false)
 
 module LiftedTrajectoryGames
 
-using DifferentiableTrajectoryOptimization:
+using Dito:
     Optimizer,
     GoalReferenceParameterization,
     InputReferenceParameterization,
