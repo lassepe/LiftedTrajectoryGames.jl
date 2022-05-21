@@ -71,10 +71,10 @@ function LiftedTrajectoryGameSolver(
             trajectory_problem = ParametricTrajectoryOptimizationProblem(
                 parameterization,
                 subdynamics,
+                inequality_constraints,
                 state_dim(subdynamics),
                 control_dim(subdynamics),
                 planning_horizon,
-                inequality_constraints,
             )
             Optimizer(trajectory_problem, trajectory_solver)
         end
