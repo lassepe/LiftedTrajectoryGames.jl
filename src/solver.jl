@@ -74,6 +74,12 @@ function LiftedTrajectoryGameSolver(
                 inequality_constraints,
                 state_dim(subdynamics),
                 control_dim(subdynamics),
+                _parameter_dimension(
+                    parameterization;
+                    horizon = planning_horizon,
+                    state_dim = state_dim(subdynamics),
+                    control_dim = control_dim(subdynamics),
+                ),
                 planning_horizon,
             )
             Optimizer(trajectory_problem, trajectory_solver)
@@ -99,10 +105,10 @@ function LiftedTrajectoryGameSolver(
         n_actions,
         initial_parameters,
         learning_rates,
-    ) do constructor, trajectory_generator, n_actions, initial_parameters, learning_rate
+    ) do constructor, trajectory_optimizer, n_actions, initial_parameters, learning_rate
         constructor(;
             input_dimension = reference_generator_input_dimension,
-            parameter_dimension = parameter_dimension(trajectory_generator),
+            parameter_dimension = parameter_dimension(trajectory_optimizer),
             n_actions,
             learning_rate,
             rng,
@@ -151,9 +157,9 @@ function optimize_trajectories(
 
     map_threadable(1:n_players, solver.execution_policy) do player_i
         references = references_per_player[player_i]
-        trajectory_generator = solver.trajectory_optimizers[player_i]
+        trajectory_optimizer = solver.trajectory_optimizers[player_i]
         substate = state_per_player[player_i]
-        map(reference -> trajectory_generator(substate, reference), references)
+        map(reference -> trajectory_optimizer(substate, reference), references)
     end
 end
 

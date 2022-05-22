@@ -3,9 +3,8 @@ __precompile__(false)
 module LiftedTrajectoryGames
 
 using Dito:
+    Dito,
     Optimizer,
-    GoalReferenceParameterization,
-    InputReferenceParameterization,
     ParametricTrajectoryOptimizationProblem,
     QPSolver,
     get_constraints_from_box_bounds,
@@ -46,6 +45,7 @@ using ChainRulesCore: ChainRulesCore
 include("threadsx_chainrules_piracy.jl")
 include("execution_policy.jl")
 
+include("dito_parameterizations.jl")
 include("coupling_constraint_handlers.jl")
 include("execution_policy.jl")
 include("solver.jl")
