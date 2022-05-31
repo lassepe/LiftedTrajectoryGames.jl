@@ -2,8 +2,8 @@ __precompile__(false)
 
 module LiftedTrajectoryGames
 
-using Dito:
-    Dito,
+using DifferentiableTrajectoryOptimization:
+    DifferentiableTrajectoryOptimization as Dito,
     Optimizer,
     ParametricTrajectoryOptimizationProblem,
     QPSolver,
