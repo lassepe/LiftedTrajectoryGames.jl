@@ -28,7 +28,7 @@ using TrajectoryGamesBase:
     Block,
     blocks,
     mortar,
-    get_position_constraints
+    get_constraints
 using Flux: Flux, Chain, Dense, Optimise, leakyrelu, @functor
 using Makie: Makie
 using StatsBase: Weights, sample

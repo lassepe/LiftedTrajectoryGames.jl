@@ -54,14 +54,14 @@ function LiftedTrajectoryGameSolver(
     trajectory_optimizers = let
         map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
             inequality_constraints = let
-                position_constraints = get_position_constraints(game.env)
+                environment_constraints = get_constraints(game.env)
                 state_box_constraints =
                     get_constraints_from_box_bounds(state_bounds(subdynamics))
                 control_box_constraints =
                     get_constraints_from_box_bounds(control_bounds(subdynamics))
 
                 function (xs, us)
-                    pc = mapreduce(x -> position_constraints(x[1:2]), vcat, xs)
+                    pc = mapreduce(x -> environment_constraints(x), vcat, xs)
                     sc = mapreduce(state_box_constraints, vcat, xs)
                     cc = mapreduce(control_box_constraints, vcat, us)
                     [pc; sc; cc]
