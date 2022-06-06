@@ -305,7 +305,7 @@ function clean_info_tuple(; game_value_per_player, mixing_strategies, trajectori
 end
 
 function cost_gradients(back, solver, game)
-    cost_gradients(back, solver, game, game.cost.structure)
+    cost_gradients(back, solver, game, cost_structure_trait(game.cost))
 end
 
 function cost_gradients(back, solver, game, ::GeneralSumCostStructure)

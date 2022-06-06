@@ -28,7 +28,8 @@ using TrajectoryGamesBase:
     Block,
     blocks,
     mortar,
-    get_constraints
+    get_constraints,
+    cost_structure_trait
 using Flux: Flux, Chain, Dense, Optimise, leakyrelu, @functor
 using Makie: Makie
 using StatsBase: Weights, sample
