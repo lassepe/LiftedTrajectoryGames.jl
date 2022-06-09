@@ -46,7 +46,6 @@ include("execution_policy.jl")
 
 include("dito_parameterizations.jl")
 include("coupling_constraint_handlers.jl")
-include("execution_policy.jl")
 include("solver.jl")
 include("statevalue_predictors.jl")
 include("strategy.jl")
