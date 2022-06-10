@@ -38,6 +38,8 @@ For a game that meets those assumptions, you can construct a `solver::LiftedTraj
 > :warning: Please refer to the docstrings of each type and function for more information.
 > For example, type `?LiftedTrajectoryGameSolver` in the REPL for more information on solver options.
 
+> :warning: Note that the solver construction may take a while as it compiles all the relevant functions and derivatives for acceleration of downstream solver invocations.
+
 ```julia
 using LiftedTrajectoryGames
 using TrajectoryGamesBase
@@ -55,8 +57,6 @@ solver = LiftedTrajectoryGames(solver, planning_horizon; n_actions)
 ### Solver Invocation
 
 #### Open-Loop Planning
-
-> :warning: Note that the solver construction may take a while as it compiles all the relevant functions and derivatives for acceleration of downstream solver invocations.
 
 Once you have set up the solver, you can invoke it for a given `initial_state`.
 
