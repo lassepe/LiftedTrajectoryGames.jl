@@ -31,7 +31,10 @@ pkg> add LiftedTrajectoryGames
 
 LiftedTrajectoryGames uses [TrajectoryGamesBase](https://github.com/lassepe/TrajectoryGamesBase.jl) as an abstraction of the problem and solver interface for trajectory games. Please to refer to that package for documentation on the problem setup. Note that the lifted game solver **requires differentiability of the game's costs and dynamics**.
 
-For a game that meets those assumptions, you can construct a `solver::LiftedTrajectoryGameSolver` using the helper constructor that recovers the relevant solver parameters (network input/output dimensions etc.) from a given `game::TrajectoryGame`. Please refer to the docstring of the `LiftedTrajectoryGameSolver` for a more complete description of the solver options.
+For a game that meets those assumptions, you can construct a `solver::LiftedTrajectoryGameSolver` using the helper constructor that recovers the relevant solver parameters (network input/output dimensions etc.) from a given `game::TrajectoryGame`.
+
+> :warning: Please refer to the docstrings of each type and function for more information.
+> For example, type `?LiftedTrajectoryGameSolver` in the REPL for more information on solver options.
 
 ```julia
 using LiftedTrajectoryGames
@@ -62,6 +65,27 @@ The resulting *mixed* joint `strategy` can then be invoked on the state to compu
 time = 1
 controls = strategy(initial_state, time)
 ```
+
+In practice, you may also wish to use the solver in the framework of model-predictive game play (MPGP), i.e., for receding-horizon invocations rather than the generation of open-loop plans.
+To this end, you can wrap the solver in a `receding_horizon_strategy::TrajectoryGamesBase.RecedingHorizonStrategy`.
+
+```julia
+receding_horizon_strategy = RecedingHorizonStrategy(solver, game)
+```
+
+This strategy will invoke the solver on demand upon invocation for a given state and time, `receding_horizon_strategy(state, time)`.
+Therefore, you can directly pass this `receding_horizon_strategy` to the `TrajectoryGamesBase.rollout` function for a receding-horizon online rollout:
+
+```julia
+number_of_sumulation_steps = 500
+simulation_steps = rollout(
+    game.dynamics,
+    receding_horizon_strategy,
+    initial_state,
+    number_of_sumulation_steps
+)
+```
+
 > :warning: TODO:
 > - load example problem from somewhere to have a copy-pastable example here.
 > - demonstrate learning from scratch in a receding-horizon setting
