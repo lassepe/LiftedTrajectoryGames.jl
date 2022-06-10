@@ -47,7 +47,7 @@ n_actions = [2 for _ in 1:num_players(game)]
 solver = LiftedTrajectoryGames(solver, planning_horizon; n_actions)
 ```
 
-> :warning: Note that the solver construction may take a while as it compiles all the relevant functions and derivatives for fast online computation.
+> :warning: Note that the solver construction may take a while as it compiles all the relevant functions and derivatives for accelerated downstream computations.
 
 Once you have set up the solver, you can invoke it for a given `initial_state`.
 
