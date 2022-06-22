@@ -33,12 +33,10 @@ LiftedTrajectoryGames uses [TrajectoryGamesBase](https://github.com/lassepe/Traj
 
 ### Solver Setup
 
-For a game that meets those assumptions, you can construct a `solver::LiftedTrajectoryGameSolver` using the helper constructor that recovers the relevant solver parameters (network input/output dimensions etc.) from a given `game::TrajectoryGame`.
+For a game that meets those assumptions, you can construct a `solver::LiftedTrajectoryGameSolver` using the helper constructor that recovers the relevant solver parameters (network input/output dimensions etc.) from a given `game::TrajectoryGame`. Note that the solver construction may take a while as it compiles all the relevant functions and derivatives for acceleration of downstream solver invocations.
 
 > :warning: Please refer to the docstrings of each type and function for more information.
 > For example, type `?LiftedTrajectoryGameSolver` in the REPL for more information on solver options.
-
-> :warning: Note that the solver construction may take a while as it compiles all the relevant functions and derivatives for acceleration of downstream solver invocations.
 
 ```julia
 using LiftedTrajectoryGames
