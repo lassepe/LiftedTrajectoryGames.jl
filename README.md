@@ -124,9 +124,7 @@ animate_sim_steps(
 ```
 
 Now you can watch the solver learning from scratch to solve the tag game.
-The resulting visualization should look something like this (of course depending on you random seed above):
-
-![](./media/sim_steps.gif)
+The resulting visualization should look something like the teaser video above (of course depending on you random seed).
 
 ---
 
