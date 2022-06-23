@@ -64,6 +64,8 @@ Once you have set up the solver, you can invoke it for a given `initial_state`.
 ```julia
 using BlockArrays: mortar
 initial_state = (mortar([rand(4) for _ in 1:num_players(game)]) .- 0.5) * 4
+# You will notice that the first invocation of this function is very slow because Julia has to compile a lot of code.
+# After all the compilation is done, subsequent invocations of this method should be blazingly fast. (on the order of milliseconds).
 strategy = solve_trajectory_game!(solver, game, initial_state)
 ```
 
@@ -104,7 +106,9 @@ simulation_steps = rollout(
 TrajectoryGamesExamples additionally provides the function `animate_sim_steps` to visualize the resulting `simulation_steps` sequence using Makie.
 
 ```julia
-using GLMakie # activate the GLMakie backend to render on a GPU-accelerated canvas. Loading this package may take a while
+# activate the GLMakie backend to render on a GPU-accelerated canvas.
+# Loading this package may take a while.
+using GLMakie
 animate_sim_steps(
     game,
     simulation_steps;
