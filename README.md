@@ -93,7 +93,9 @@ simulation_steps = rollout(
     game.dynamics,
     receding_horizon_strategy,
     initial_state,
-    number_of_sumulation_steps
+    number_of_sumulation_steps;
+    # here, we also record the strategy at each time step for visualization below
+    get_info = (strategy, x, t) -> strategy.receding_horizon_strategy,
 )
 ```
 
@@ -102,8 +104,15 @@ simulation_steps = rollout(
 TrajectoryGamesExamples additionally provides the function `animate_sim_steps` to visualize the resulting `simulation_steps` sequence using Makie.
 
 ```julia
-using GLMakie # activate the GLMakie backend to render on a GPU-accelerated canvas
-animate_sim_steps(game, simulation_steps; live = false, framerate = 60, show_turn = true)
+using GLMakie # activate the GLMakie backend to render on a GPU-accelerated canvas. Loading this package may take a while
+animate_sim_steps(
+    game,
+    simulation_steps;
+    live = true, # slow down the renderering for live viewing
+    framerate = 60,
+    show_turn = true,
+    filename = "sim_steps.mp4" # store the visualization at this (relative) path
+)
 ```
 
 ---
