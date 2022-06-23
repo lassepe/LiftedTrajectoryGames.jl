@@ -12,6 +12,7 @@ using Zygote: Zygote
 using ThreadsX: ThreadsX
 using Base.Threads: nthreads
 
+using GLMakie: GLMakie
 using TrajectoryGamesBase: RecedingHorizonStrategy, num_players, rollout, solve_trajectory_game!
 using TrajectoryGamesExamples: animate_sim_steps, two_player_meta_tag
 using BlockArrays: mortar
