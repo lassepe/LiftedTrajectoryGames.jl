@@ -45,11 +45,15 @@ include("threadsx_chainrules_piracy.jl")
 include("execution_policy.jl")
 
 include("dito_parameterizations.jl")
-include("coupling_constraint_handlers.jl")
-include("solver.jl")
-include("statevalue_predictors.jl")
-include("strategy.jl")
 include("trajectory_reference_generators.jl")
+include("coupling_constraint_handlers.jl")
+include("statevalue_predictors.jl")
+include("solver.jl")
+export LiftedTrajectoryGameSolver, NNActionGenerator
+
+include("strategy.jl")
+export LiftedTrajectoryStrategy
+
 include("visualization.jl")
 
 end

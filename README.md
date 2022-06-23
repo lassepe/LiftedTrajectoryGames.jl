@@ -39,17 +39,21 @@ For a game that meets those assumptions, you can construct a `solver::LiftedTraj
 > For example, type `?LiftedTrajectoryGameSolver` in the REPL for more information on solver options.
 
 ```julia
+# install unregistered TrajectoryGamesExamples package
+using Pkg: Pkg
+Pkg.add(url="git@github.com:lassepe/TrajectoryGamesExamples.jl")
+
 using LiftedTrajectoryGames
 using TrajectoryGamesBase
-using Random: MersenneTwister
+using TrajectoryGamesExamples
+using BlockArrays: mortar
 
 # place holder; replace with your actual game constructor
-game = construct_your_game_of_choice()
-
+game = two_player_meta_tag()
 planning_horizon = 20
 # the number of "pure" trajectories to mix over for each player:
 n_actions = [2 for _ in 1:num_players(game)]
-solver = LiftedTrajectoryGames(solver, planning_horizon; n_actions)
+solver = LiftedTrajectoryGameSolver(game, planning_horizon; n_actions)
 ```
 
 ### Solver Invocation
@@ -59,6 +63,7 @@ solver = LiftedTrajectoryGames(solver, planning_horizon; n_actions)
 Once you have set up the solver, you can invoke it for a given `initial_state`.
 
 ```julia
+initial_state = (mortar([rand(4) for _ in 1:num_players(game)]) .- 0.5) * 4
 strategy = solve_trajectory_game!(solver, game, initial_state)
 ```
 
