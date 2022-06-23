@@ -46,7 +46,6 @@ Pkg.add(url="git@github.com:lassepe/TrajectoryGamesExamples.jl")
 using LiftedTrajectoryGames
 using TrajectoryGamesBase
 using TrajectoryGamesExamples
-using BlockArrays: mortar
 
 # place holder; replace with your actual game constructor
 game = two_player_meta_tag()
@@ -63,6 +62,7 @@ solver = LiftedTrajectoryGameSolver(game, planning_horizon; n_actions)
 Once you have set up the solver, you can invoke it for a given `initial_state`.
 
 ```julia
+using BlockArrays: mortar
 initial_state = (mortar([rand(4) for _ in 1:num_players(game)]) .- 0.5) * 4
 strategy = solve_trajectory_game!(solver, game, initial_state)
 ```
@@ -81,7 +81,7 @@ In practice, you may also wish to use the solver in the framework of model-predi
 To this end, you can wrap the solver in a `receding_horizon_strategy::TrajectoryGamesBase.RecedingHorizonStrategy`.
 
 ```julia
-receding_horizon_strategy = RecedingHorizonStrategy(solver, game)
+receding_horizon_strategy = RecedingHorizonStrategy(; solver, game, turn_length = 5)
 ```
 
 This strategy will invoke the solver on demand upon invocation for a given state and time, `receding_horizon_strategy(state, time)`.
@@ -95,6 +95,15 @@ simulation_steps = rollout(
     initial_state,
     number_of_sumulation_steps
 )
+```
+
+### Visualization
+
+TrajectoryGamesExamples additionally provides the function `animate_sim_steps` to visualize the resulting `simulation_steps` sequence using Makie.
+
+```julia
+using GLMakie # activate the GLMakie backend to render on a GPU-accelerated canvas
+animate_sim_steps(game, simulation_steps; live = false, framerate = 60, show_turn = true)
 ```
 
 ---
