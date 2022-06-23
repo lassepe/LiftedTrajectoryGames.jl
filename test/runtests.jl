@@ -1,6 +1,9 @@
 using Pkg: Pkg
-Pkg.develop(path="../../TrajectoryGamesExamples")
-
+try
+    Pkg.develop(path="../../TrajectoryGamesExamples")
+catch
+    Pkg.add(url="git@github.com:lassepe/TrajectoryGamesExamples.jl")
+end
 
 using LiftedTrajectoryGames:
     LiftedTrajectoryGames,
