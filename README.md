@@ -118,6 +118,4 @@ animate_sim_steps(
 ---
 
 > :warning: TODO:
-> - load example problem from somewhere to have a copy-pastable example here.
-> - demonstrate learning from scratch in a receding-horizon setting
 > - explain learning settings
