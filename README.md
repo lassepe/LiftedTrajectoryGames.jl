@@ -111,9 +111,14 @@ animate_sim_steps(
     live = true, # slow down the renderering for live viewing
     framerate = 60,
     show_turn = true,
-    filename = "sim_steps.mp4" # store the visualization at this (relative) path
+    filename = "sim_steps" # store the visualization at this (relative) path
 )
 ```
+
+Now you can watch the solver learning from scratch to solve the tag game.
+The resulting visualization should look something like this (of course depending on you random seed above):
+
+![](./media/sim_steps.gif)
 
 ---
 
