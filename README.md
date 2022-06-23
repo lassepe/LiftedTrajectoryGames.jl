@@ -2,7 +2,8 @@
 
 A reference implementation of the lifted game solver presented in our RSS 2022 paper ["Learning Mixed Strategies in Trajectory Games"](https://arxiv.org/pdf/2205.00291.pdf).
 
-![Demo: learning to solve a game of tag from scratch in receding-horizon self-play](./media/sim_steps.gif)
+**Teaser:** learning to solve a game of tag from scratch in receding-horizon self-play.
+![](./media/sim_steps.gif)
 
 ## Paper
 
