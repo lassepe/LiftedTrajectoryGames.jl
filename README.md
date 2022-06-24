@@ -51,7 +51,7 @@ For a game that meets those assumptions, you can construct a `solver::LiftedTraj
 ```julia
 # install unregistered TrajectoryGamesExamples package
 using Pkg: Pkg
-Pkg.add(url="git@github.com:lassepe/TrajectoryGamesExamples.jl")
+Pkg.add(url="https://github.com/lassepe/TrajectoryGamesExamples.jl")
 
 using LiftedTrajectoryGames
 using TrajectoryGamesBase
