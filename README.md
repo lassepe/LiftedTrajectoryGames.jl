@@ -8,12 +8,6 @@ A reference implementation of the lifted game solver presented in our RSS 2022 p
 
 Please consult [project website](https://lasse-peters.net/pub/lifted-games) for more information on this project.
 
-## Teaser: Learning to solve a game of tag from scratch in receding-horizon self-play.
-
-![](./media/sim_steps.gif)
-
-## Paper
-
 [![](https://lasse-peters.net/pub/lifted-games/peters2022rss-teaser.png)](https://arxiv.org/pdf/2205.00291.pdf)
 
 ```bibtex
@@ -25,6 +19,11 @@ Please consult [project website](https://lasse-peters.net/pub/lifted-games) for 
     url       = {https://arxiv.org/abs/2106.03611}
 }
 ```
+
+
+## Teaser: Learning to solve a game of tag from scratch in receding-horizon self-play.
+
+![](./media/sim_steps.gif)
 
 ## Installation
 
