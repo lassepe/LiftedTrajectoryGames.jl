@@ -1,5 +1,7 @@
 # LiftedTrajectoryGames
 
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/licenses/MIT)
+
 A reference implementation of the lifted game solver presented in our RSS 2022 paper ["Learning Mixed Strategies in Trajectory Games"](https://arxiv.org/pdf/2205.00291.pdf).
 
 ## Teaser: Learning to solve a game of tag from scratch in receding-horizon self-play.
