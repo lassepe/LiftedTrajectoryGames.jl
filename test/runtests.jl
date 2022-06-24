@@ -2,7 +2,7 @@ using Pkg: Pkg
 try
     Pkg.develop(path="../../TrajectoryGamesExamples")
 catch
-    Pkg.add(url="git@github.com:lassepe/TrajectoryGamesExamples.jl")
+    Pkg.add(url="https://github.com/lassepe/TrajectoryGamesExamples.jl")
 end
 
 using LiftedTrajectoryGames:
