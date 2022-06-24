@@ -1,6 +1,7 @@
 # LiftedTrajectoryGames
 
 [![CI](https://github.com/lassepe/LiftedTrajectoryGames.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/lassepe/LiftedTrajectoryGames.jl/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/lassepe/LiftedTrajectoryGames.jl/branch/main/graph/badge.svg?token=I6j8hL6x22)](https://codecov.io/gh/lassepe/LiftedTrajectoryGames.jl)
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/licenses/MIT)
 
 A reference implementation of the lifted game solver presented in our RSS 2022 paper ["Learning Mixed Strategies in Trajectory Games"](https://arxiv.org/pdf/2205.00291.pdf).
