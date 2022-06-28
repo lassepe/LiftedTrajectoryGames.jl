@@ -27,8 +27,6 @@ Please consult [project website](https://lasse-peters.net/pub/lifted-games) for 
 
 ## Installation
 
-> :warning: LiftedTrajectoryGames is not yet registered in the General registry. For now, you have to add it manually via the package URL: `pkg> add https://github.com/lassepe/LiftedTrajectoryGames.jl`
-
 To install LiftedTrajectoryGames, simply add it via Julia's package manager from the REPL:
 
 ```julia
