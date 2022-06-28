@@ -1,10 +1,3 @@
-using Pkg: Pkg
-try
-    Pkg.develop(path="../../TrajectoryGamesExamples")
-catch
-    Pkg.add(url="https://github.com/lassepe/TrajectoryGamesExamples.jl")
-end
-
 using LiftedTrajectoryGames:
     LiftedTrajectoryGames,
     LiftedTrajectoryGameSolver,

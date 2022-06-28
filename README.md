@@ -46,10 +46,6 @@ For a game that meets those assumptions, you can construct a `solver::LiftedTraj
 > For example, type `?LiftedTrajectoryGameSolver` in the REPL for more information on solver options.
 
 ```julia
-# install unregistered TrajectoryGamesExamples package
-using Pkg: Pkg
-Pkg.add(url="https://github.com/lassepe/TrajectoryGamesExamples.jl")
-
 using LiftedTrajectoryGames
 using TrajectoryGamesBase
 using TrajectoryGamesExamples
