@@ -93,12 +93,12 @@ This strategy will invoke the solver on demand upon invocation for a given state
 Therefore, you can directly pass this `receding_horizon_strategy` to the `TrajectoryGamesBase.rollout` function for a receding-horizon online rollout:
 
 ```julia
-number_of_sumulation_steps = 500
+number_of_simulation_steps = 500
 simulation_steps = rollout(
     game.dynamics,
     receding_horizon_strategy,
     initial_state,
-    number_of_sumulation_steps;
+    number_of_simulation_steps;
     # here, we also record the strategy at each time step for visualization below
     get_info = (strategy, x, t) -> strategy.receding_horizon_strategy,
 )
