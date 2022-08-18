@@ -52,9 +52,13 @@ function LiftedTrajectoryGameSolver(
     compose_reference_generator_input = (i, game_state, context) -> [game_state; context],
 )
     trajectory_optimizers = let
-        map(game.dynamics.subsystems, trajectory_parameterizations) do subdynamics, parameterization
+        map(
+            game.dynamics.subsystems,
+            trajectory_parameterizations,
+            Iterators.countfrom(),
+        ) do subdynamics, parameterization, player_index
             inequality_constraints = let
-                environment_constraints = get_constraints(game.env)
+                environment_constraints = get_constraints(game.env, player_index)
                 state_box_constraints =
                     get_constraints_from_box_bounds(state_bounds(subdynamics))
                 control_box_constraints =
