@@ -16,7 +16,7 @@ Please consult [project website](https://lasse-peters.net/pub/lifted-games) for 
     author    = {Peters, Lasse and Fridovich-Keil, David and Ferranti, Laura and Stachniss, Cyrill and Alonso-Mora, Javier and Laine, Forrest},
     booktitle = {Proc.~of Robotics: Science and Systems (RSS)},
     year      = {2022},
-    url       = {https://arxiv.org/abs/2106.03611}
+    url       = {https://arxiv.org/abs/2205.00291}
 }
 ```
 
